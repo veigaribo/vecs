@@ -1,9 +1,6 @@
-use std::{borrow::Cow, fmt::format};
-
 use crate::parse::data::{
   result::{ParseError, ParseResult, ParseSuccess},
   src::ParseSrc,
-  str::Span,
 };
 
 pub fn parse_str<'str>(
@@ -112,11 +109,11 @@ mod tests {
 
     // Different characters.
     let src = ParseSrc::new(None, "abc");
-    let result = parse_str("def", src).expect_err("parse not error");
+    let _ = parse_str("def", src).expect_err("parse not error");
 
     // Source too short.
     let src = ParseSrc::new(None, "ab");
-    let result = parse_str("abc", src).expect_err("parse not error");
+    let _ = parse_str("abc", src).expect_err("parse not error");
   }
 
   #[test]

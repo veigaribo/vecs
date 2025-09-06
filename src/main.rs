@@ -1,15 +1,27 @@
-#![cfg_attr(feature = "lax", allow(unused))]
-#![feature(allocator_api)]
+#![allow(unused_mut)]
 
-use std::fmt::Write;
-
-use bumpalo::{Bump, collections::Vec};
-
-use crate::parse::{
-  comments::parse_comment,
-  data::{src::ParseSrc, str::Span},
-};
-
+mod cli;
 mod parse;
 
-fn main() {}
+use std::fs;
+
+use bumpalo::Bump;
+use clap::Parser as _;
+
+use crate::{
+  cli::Cli,
+  parse::{data::src::ParseSrc, parse, strip_comments},
+};
+
+fn main() {
+  let arena = Bump::new();
+  let cli = Cli::parse();
+
+  let mut src_str = fs::read_to_string(&cli.source).expect("error reading file");
+  strip_comments(&arena, &mut src_str);
+
+  let src = ParseSrc::new(Some(&cli.source), &src_str);
+  let success = parse(&arena, src).expect("parsing error");
+
+  println!("{:?}", success.value);
+}

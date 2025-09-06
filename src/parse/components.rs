@@ -6,7 +6,7 @@ use crate::parse::{
     str::{parse_char, parse_str, parse_whitespace},
   },
   data::{
-    result::{ParseError, ParseResult, ParseSuccess},
+    result::{ParseResult, ParseSuccess},
     src::ParseSrc,
   },
 };
@@ -121,7 +121,7 @@ mod tests {
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let result = parse_component_field(src).expect_err("parse not error");
+    let _ = parse_component_field(src).expect_err("parse not error");
   }
 
   #[test]
@@ -167,6 +167,6 @@ mod tests {
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let result = parse_component(&arena, src).expect_err("parse not error");
+    let _ = parse_component(&arena, src).expect_err("parse not error");
   }
 }

@@ -64,6 +64,6 @@ mod tests {
 
     // Different characters.
     let src = ParseSrc::new(None, "1abc");
-    let result = parse_identifier(src).expect_err("parse not error");
+    let _ = parse_identifier(src).expect_err("parse not error");
   }
 }

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 #[derive(Debug, Copy, Clone)]
 pub struct Location<'str> {
   pub file: Option<&'str str>,
@@ -29,6 +31,22 @@ impl<'str> Location<'str> {
         self.column += 1;
       }
     }
+  }
+}
+
+impl<'str> std::fmt::Display for Location<'str> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if let Some(file) = self.file {
+      f.write_str(file)?;
+    }
+
+    f.write_char('@')?;
+    self.byte_offset.fmt(f)?;
+    f.write_char(' ')?;
+    self.line.fmt(f)?;
+    self.column.fmt(f)?;
+
+    Ok(())
   }
 }
 

@@ -19,7 +19,7 @@ use crate::parse::{
   systems::{System, parse_system},
 };
 
-fn strip_comments(arena: &Bump, t: &mut str) {
+pub fn strip_comments(arena: &Bump, t: &mut str) {
   let mut src = ParseSrc::from(&*t);
   let mut spans = Vec::<(usize, usize)>::new_in(arena); // Just start and end bytes.
 
@@ -35,7 +35,7 @@ fn strip_comments(arena: &Bump, t: &mut str) {
         let c = src.next();
 
         match c {
-          Some(c) => {}
+          Some(_) => {}
           None => break,
         }
       }
@@ -98,8 +98,6 @@ pub fn parse<'str>(
         });
       }
 
-      let start_location = src.location;
-
       // The line or 200 bytes, whichever ends first.
       let found = (0..200)
         .into_iter()
@@ -116,12 +114,6 @@ pub fn parse<'str>(
     let ParseSuccess { src: item_src, .. } = parse_whitespace(src)?;
     src = item_src;
   }
-
-  Ok(ParseSuccess {
-    value: parsed,
-    span: src.span_from(&start),
-    src,
-  })
 }
 
 #[cfg(test)]

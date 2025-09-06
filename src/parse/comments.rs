@@ -54,6 +54,6 @@ mod tests {
 
     // Different characters.
     let src = ParseSrc::new(None, "abc");
-    let result = parse_inline_comment(src).expect_err("parse not error");
+    let _ = parse_inline_comment(src).expect_err("parse not error");
   }
 }

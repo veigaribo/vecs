@@ -1,0 +1,17 @@
+component transform {
+  double x;
+  double y;
+}
+
+component render {
+  texture_t texture;
+}
+
+event mouse_click {
+  double x;
+  double y;
+  uint8_t button;
+}
+
+system move(transform)
+system render(transform, render)

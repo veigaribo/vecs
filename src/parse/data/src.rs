@@ -1,7 +1,4 @@
-use std::{
-  iter::Peekable,
-  str::{Chars, FromStr},
-};
+use std::str::Chars;
 
 use crate::parse::data::str::Span;
 
@@ -48,7 +45,7 @@ impl<'str> ParseSrc<'str> {
     clone.next()
   }
 
-  // Useful for testing.
+  #[cfg(test)]
   pub fn remaining_str(&self) -> String {
     self.chars.clone().collect::<String>()
   }
