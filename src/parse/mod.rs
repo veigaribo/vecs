@@ -77,7 +77,7 @@ pub fn parse<'str>(
   let start = src.clone();
   let mut parsed = Parsed::new(arena);
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
+  src = parse_whitespace(src)?.src;
 
   loop {
     if let Ok(success) = parse_component(arena, src.clone()) {
@@ -111,8 +111,7 @@ pub fn parse<'str>(
       ));
     }
 
-    let ParseSuccess { src: item_src, .. } = parse_whitespace(src)?;
-    src = item_src;
+    src = parse_whitespace(src)?.src;
   }
 }
 
@@ -142,7 +141,7 @@ component airton {\r\nint x;
 ",
     );
 
-    let mut target_str = String::from(
+    let target_str = String::from(
       "
                                 
 component airton {\r\nint x;
@@ -160,7 +159,7 @@ component airton {\r\nint x;
   fn test_parse() {
     let arena = Bump::new();
 
-    let mut src = ParseSrc::from(
+    let src = ParseSrc::from(
       " \
       component transform { \
         double x; \

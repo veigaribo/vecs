@@ -42,32 +42,26 @@ pub fn parse_component<'str>(
   let start = src.clone();
   let mut fields = Vec::<ComponentField>::new_in(arena);
 
-  let ParseSuccess { mut src, .. } = parse_str("component", src)?;
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
+  src = parse_str("component", src)?.src;
+  src = parse_whitespace(src)?.src;
 
-  let ParseSuccess {
-    mut src,
-    value: name,
-    ..
-  } = parse_identifier(src)?;
+  let parsed_name = parse_identifier(src)?;
+  src = parsed_name.src;
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
-  let ParseSuccess { mut src, .. } = parse_char('{', src)?;
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
+  src = parse_whitespace(src)?.src;
+  src = parse_char('{', src)?.src;
+  src = parse_whitespace(src)?.src;
 
   while let Ok(success) = parse_component_field(src.clone()) {
     fields.push(success.value);
-    let item_src = success.src;
-
-    let ParseSuccess { src: item_src, .. } = parse_whitespace(item_src)?;
-    src = item_src;
+    src = parse_whitespace(success.src)?.src;
   }
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
-  let ParseSuccess { mut src, .. } = parse_char('}', src)?;
+  src = parse_whitespace(src)?.src;
+  src = parse_char('}', src)?.src;
 
   Ok(ParseSuccess {
-    value: Component::new(name, fields),
+    value: Component::new(parsed_name.value, fields),
     span: src.span_from(&start),
     src,
   })
@@ -78,25 +72,19 @@ pub fn parse_component_field<'str>(
 ) -> ParseResult<'str, ComponentField<'str>> {
   let start = src.clone();
 
-  let ParseSuccess {
-    mut src,
-    value: typ,
-    ..
-  } = parse_identifier(src)?;
+  let parsed_type = parse_identifier(src)?;
+  src = parsed_type.src;
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
+  src = parse_whitespace(src)?.src;
 
-  let ParseSuccess {
-    mut src,
-    value: name,
-    ..
-  } = parse_identifier(src)?;
+  let parsed_name = parse_identifier(src)?;
+  src = parsed_name.src;
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
-  let ParseSuccess { mut src, .. } = parse_char(';', src)?;
+  src = parse_whitespace(src)?.src;
+  src = parse_char(';', src)?.src;
 
   Ok(ParseSuccess {
-    value: ComponentField::new(typ, name),
+    value: ComponentField::new(parsed_type.value, parsed_name.value),
     span: src.span_from(&start),
     src,
   })

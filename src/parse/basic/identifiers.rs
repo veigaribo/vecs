@@ -7,7 +7,6 @@ pub fn parse_identifier<'str>(
   mut src: ParseSrc<'str>,
 ) -> ParseResult<'str, &'str str> {
   let start = src.clone();
-
   let first = src.next();
 
   if let Some(first) = first {

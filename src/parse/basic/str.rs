@@ -5,7 +5,7 @@ use crate::parse::data::{
 
 pub fn parse_str<'str>(
   target: &'str str,
-  mut src: ParseSrc<'str>,
+  src: ParseSrc<'str>,
 ) -> ParseResult<'str, &'str str> {
   let start = src.clone();
 

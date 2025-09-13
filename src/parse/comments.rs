@@ -11,7 +11,7 @@ pub fn parse_inline_comment<'str>(
 ) -> ParseResult<'str, &'str str> {
   let start = src.clone();
 
-  let ParseSuccess { mut src, .. } = parse_str("//", src)?;
+  src = parse_str("//", src)?.src;
 
   while let Some(content) = src.peek() {
     if content == '\n' {
@@ -30,7 +30,7 @@ pub fn parse_inline_comment<'str>(
   })
 }
 
-pub fn parse_comment<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, &'str str> {
+pub fn parse_comment<'str>(src: ParseSrc<'str>) -> ParseResult<'str, &'str str> {
   parse_inline_comment(src)
 }
 

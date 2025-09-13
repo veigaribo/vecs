@@ -30,18 +30,15 @@ pub fn parse_system<'str>(
   let start = src.clone();
   let mut params = Vec::<&'str str>::new_in(arena);
 
-  let ParseSuccess { mut src, .. } = parse_str("system", src)?;
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
+  src = parse_str("system", src)?.src;
+  src = parse_whitespace(src)?.src;
 
-  let ParseSuccess {
-    mut src,
-    value: name,
-    ..
-  } = parse_identifier(src)?;
+  let parsed_name = parse_identifier(src)?;
+  src = parsed_name.src;
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
-  let ParseSuccess { mut src, .. } = parse_char('(', src)?;
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
+  src = parse_whitespace(src)?.src;
+  src = parse_char('(', src)?.src;
+  src = parse_whitespace(src)?.src;
 
   let first_param = parse_identifier(src.clone());
 
@@ -51,10 +48,10 @@ pub fn parse_system<'str>(
       src = first_param.src;
     }
     Err(_) => {
-      let ParseSuccess { mut src, .. } = parse_char(')', src)?;
+      src = parse_char(')', src)?.src;
 
       return Ok(ParseSuccess {
-        value: System::new(name, params),
+        value: System::new(parsed_name.value, params),
         span: src.span_from(&start),
         src,
       });
@@ -62,41 +59,28 @@ pub fn parse_system<'str>(
   }
 
   while let Ok(success) = parse_char(',', src.clone()) {
-    let item_src = success.src;
+    src = parse_whitespace(success.src)?.src;
 
-    let ParseSuccess {
-      src: mut item_src, ..
-    } = parse_whitespace(item_src)?;
-
-    match parse_identifier(item_src.clone()) {
+    match parse_identifier(src.clone()) {
       Ok(ParseSuccess {
         src: identifier_src,
         value: param,
         ..
       }) => {
         params.push(param);
-
-        let ParseSuccess {
-          src: identifier_src,
-          ..
-        } = parse_whitespace(identifier_src)?;
-
-        item_src = identifier_src;
+        src = parse_whitespace(identifier_src)?.src;
       }
       Err(_) => {
-        src = item_src;
         break;
       }
     }
-
-    src = item_src;
   }
 
-  let ParseSuccess { mut src, .. } = parse_whitespace(src)?;
-  let ParseSuccess { mut src, .. } = parse_char(')', src)?;
+  src = parse_whitespace(src)?.src;
+  src = parse_char(')', src)?.src;
 
   Ok(ParseSuccess {
-    value: System::new(name, params),
+    value: System::new(parsed_name.value, params),
     span: src.span_from(&start),
     src,
   })

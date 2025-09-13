@@ -1,5 +1,3 @@
-#![allow(unused_mut)]
-
 mod cli;
 mod parse;
 
