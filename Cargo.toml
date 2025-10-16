@@ -1,8 +1,12 @@
-[package]
-name = "vecs"
-version = "0.1.0"
+[workspace]
+resolver = "3"
+members = [
+	"vecs_gen",
+	# "vecs_engine",
+]
+
+[workspace.package]
 edition = "2024"
 
-[dependencies]
-bumpalo = { version = "3.19.0", features = ["collections"] }
-clap = { version = "4.5.47", features = ["derive"] }
+[workspace.dependencies]
+bumpalo = { version = "3.19.0" }

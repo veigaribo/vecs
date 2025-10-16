@@ -1,0 +1,8 @@
+[package]
+name = "vecs"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+bumpalo = { workspace = true, features = ["collections"] }
+clap = { version = "4.5.47", features = ["derive"] }
