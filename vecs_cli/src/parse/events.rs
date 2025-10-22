@@ -1,5 +1,3 @@
-use bumpalo::{Bump, collections::Vec};
-
 use crate::parse::{
   basic::{
     identifiers::parse_identifier,
@@ -26,21 +24,18 @@ impl<'str> EventField<'str> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Event<'str> {
   name: &'str str,
-  fields: Vec<'str, EventField<'str>>,
+  fields: Vec<EventField<'str>>,
 }
 
 impl<'str> Event<'str> {
-  pub fn new(name: &'str str, fields: Vec<'str, EventField<'str>>) -> Self {
+  pub fn new(name: &'str str, fields: Vec<EventField<'str>>) -> Self {
     Self { name, fields }
   }
 }
 
-pub fn parse_event<'str>(
-  arena: &'str Bump,
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, Event<'str>> {
+pub fn parse_event<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, Event<'str>> {
   let start = src.clone();
-  let mut fields = Vec::<EventField>::new_in(arena);
+  let mut fields = Vec::<EventField>::new();
 
   src = parse_str("event", src)?.src;
   src = parse_whitespace(src)?.src;
@@ -92,11 +87,9 @@ pub fn parse_event_field<'str>(
 
 #[cfg(test)]
 mod tests {
-  use bumpalo::Bump;
-
   use crate::parse::{
     data::src::ParseSrc,
-    events::{Event, EventField, parse_event, parse_event_field},
+    events::{parse_event, parse_event_field, Event, EventField},
   };
 
   #[test]
@@ -114,8 +107,6 @@ mod tests {
 
   #[test]
   fn test_parse_event() {
-    let arena = Bump::new();
-
     // Good.
     let src = ParseSrc::new(
       None,
@@ -125,13 +116,12 @@ mod tests {
     } // math",
     );
 
-    let result = parse_event(&arena, src).expect("parse error");
+    let result = parse_event(src).expect("parse error");
     assert_eq!(
       result.value,
       Event::new(
         "mouse_move",
-        bumpalo::vec![
-          in &arena;
+        vec![
           EventField::new("double", "x"),
           EventField::new("double", "y")
         ]
@@ -146,12 +136,12 @@ mod tests {
     } // a",
     );
 
-    let result = parse_event(&arena, src).expect("parse error");
-    assert_eq!(result.value, Event::new("noop", bumpalo::vec![in &arena;]));
+    let result = parse_event(src).expect("parse error");
+    assert_eq!(result.value, Event::new("noop", vec![]));
     assert_eq!(result.src.remaining_str(), " // a");
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let _ = parse_event(&arena, src).expect_err("parse not error");
+    let _ = parse_event(src).expect_err("parse not error");
   }
 }

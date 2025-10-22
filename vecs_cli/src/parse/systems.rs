@@ -1,5 +1,3 @@
-use bumpalo::{Bump, collections::Vec};
-
 use crate::parse::{
   basic::{
     identifiers::parse_identifier,
@@ -14,21 +12,20 @@ use crate::parse::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct System<'str> {
   name: &'str str,
-  params: Vec<'str, &'str str>,
+  params: Vec<&'str str>,
 }
 
 impl<'str> System<'str> {
-  pub fn new(name: &'str str, params: Vec<'str, &'str str>) -> Self {
+  pub fn new(name: &'str str, params: Vec<&'str str>) -> Self {
     Self { name, params }
   }
 }
 
 pub fn parse_system<'str>(
-  arena: &'str Bump,
   mut src: ParseSrc<'str>,
 ) -> ParseResult<'str, System<'str>> {
   let start = src.clone();
-  let mut params = Vec::<&'str str>::new_in(arena);
+  let mut params = Vec::<&'str str>::new();
 
   src = parse_str("system", src)?.src;
   src = parse_whitespace(src)?.src;
@@ -88,55 +85,45 @@ pub fn parse_system<'str>(
 
 #[cfg(test)]
 mod tests {
-  use bumpalo::Bump;
-
   use crate::parse::{
     data::src::ParseSrc,
-    systems::{System, parse_system},
+    systems::{parse_system, System},
   };
 
   #[test]
   fn test_parse_system() {
-    let arena = Bump::new();
-
     // Good.
     let src = ParseSrc::new(None, "system render(transform, render) // b");
-    let result = parse_system(&arena, src).expect("parse error");
+    let result = parse_system(src).expect("parse error");
     assert_eq!(
       result.value,
-      System::new("render", bumpalo::vec![in &arena; "transform", "render"])
+      System::new("render", vec!["transform", "render"])
     );
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Good. No components.
     let src = ParseSrc::new(None, "system render() // b");
-    let result = parse_system(&arena, src).expect("parse error");
-    assert_eq!(
-      result.value,
-      System::new("render", bumpalo::vec![in &arena;])
-    );
+    let result = parse_system(src).expect("parse error");
+    assert_eq!(result.value, System::new("render", vec![]));
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Good. One component.
     let src = ParseSrc::new(None, "system move(transform) // b");
-    let result = parse_system(&arena, src).expect("parse error");
-    assert_eq!(
-      result.value,
-      System::new("move", bumpalo::vec![in &arena; "transform"])
-    );
+    let result = parse_system(src).expect("parse error");
+    assert_eq!(result.value, System::new("move", vec!["transform"]));
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Good. Trailing comma.
     let src = ParseSrc::new(None, "system render(transform, render,) // b");
-    let result = parse_system(&arena, src).expect("parse error");
+    let result = parse_system(src).expect("parse error");
     assert_eq!(
       result.value,
-      System::new("render", bumpalo::vec![in &arena; "transform", "render"])
+      System::new("render", vec!["transform", "render"])
     );
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let _ = parse_system(&arena, src).expect_err("parse not error");
+    let _ = parse_system(src).expect_err("parse not error");
   }
 }

@@ -41,8 +41,6 @@ pub fn generate<'str, W: io::Write>(data: Parsed<'str>, w: &mut W) -> io::Result
 
 #[cfg(test)]
 mod tests {
-  use bumpalo::Bump;
-
   use crate::{
     generate::generate,
     parse::{
@@ -55,39 +53,30 @@ mod tests {
 
   #[test]
   fn test_generate() {
-    let arena = Bump::new();
-
     let data = Parsed {
-      components: bumpalo::vec![
-        in &arena;
-        Component::new("transform",
-          bumpalo::vec![in &arena;
+      components: vec![
+        Component::new(
+          "transform",
+          vec![
             ComponentField::new("double", "x"),
             ComponentField::new("double", "y"),
-          ]
+          ],
         ),
-        Component::new("render",
-          bumpalo::vec![in &arena;
-            ComponentField::new("texture_t", "texture"),
-          ]
-        ),
+        Component::new("render", vec![ComponentField::new("texture_t", "texture")]),
       ],
 
-      events: bumpalo::vec![
-        in &arena;
-        Event::new("mouse_click",
-          bumpalo::vec![in &arena;
-            EventField::new("double", "x"),
-            EventField::new("double", "y"),
-            EventField::new("uint8_t", "button"),
-          ]
-        ),
-      ],
+      events: vec![Event::new(
+        "mouse_click",
+        vec![
+          EventField::new("double", "x"),
+          EventField::new("double", "y"),
+          EventField::new("uint8_t", "button"),
+        ],
+      )],
 
-      systems: bumpalo::vec![
-        in &arena;
-        System::new("move", bumpalo::vec![in &arena; "transform"]),
-        System::new("render", bumpalo::vec![in &arena; "transform", "render"]),
+      systems: vec![
+        System::new("move", vec!["transform"]),
+        System::new("render", vec!["transform", "render"]),
       ],
     };
 

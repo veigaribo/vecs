@@ -5,8 +5,6 @@ pub mod data;
 pub mod events;
 pub mod systems;
 
-use bumpalo::{collections::Vec, Bump};
-
 use crate::parse::{
   basic::str::parse_whitespace,
   comments::parse_comment,
@@ -19,9 +17,9 @@ use crate::parse::{
   systems::{parse_system, System},
 };
 
-pub fn strip_comments(arena: &Bump, t: &mut str) {
+pub fn strip_comments(t: &mut str) {
   let mut src = ParseSrc::from(&*t);
-  let mut spans = Vec::<(usize, usize)>::new_in(arena); // Just start and end bytes.
+  let mut spans = Vec::<(usize, usize)>::new(); // Just start and end bytes.
 
   loop {
     match parse_comment(src.clone()) {
@@ -55,38 +53,35 @@ pub fn strip_comments(arena: &Bump, t: &mut str) {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parsed<'str> {
-  pub components: Vec<'str, Component<'str>>,
-  pub events: Vec<'str, Event<'str>>,
-  pub systems: Vec<'str, System<'str>>,
+  pub components: Vec<Component<'str>>,
+  pub events: Vec<Event<'str>>,
+  pub systems: Vec<System<'str>>,
 }
 
 impl<'str> Parsed<'str> {
-  pub fn new(arena: &'str Bump) -> Self {
+  pub fn new() -> Self {
     Self {
-      components: Vec::new_in(arena),
-      events: Vec::new_in(arena),
-      systems: Vec::new_in(arena),
+      components: Vec::new(),
+      events: Vec::new(),
+      systems: Vec::new(),
     }
   }
 }
 
-pub fn parse<'str>(
-  arena: &'str Bump,
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, Parsed<'str>> {
+pub fn parse<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, Parsed<'str>> {
   let start = src.clone();
-  let mut parsed = Parsed::new(arena);
+  let mut parsed = Parsed::new();
 
   src = parse_whitespace(src)?.src;
 
   loop {
-    if let Ok(success) = parse_component(arena, src.clone()) {
+    if let Ok(success) = parse_component(src.clone()) {
       parsed.components.push(success.value);
       src = success.src;
-    } else if let Ok(success) = parse_event(arena, src.clone()) {
+    } else if let Ok(success) = parse_event(src.clone()) {
       parsed.events.push(success.value);
       src = success.src;
-    } else if let Ok(success) = parse_system(arena, src.clone()) {
+    } else if let Ok(success) = parse_system(src.clone()) {
       parsed.systems.push(success.value);
       src = success.src;
     } else {
@@ -117,8 +112,6 @@ pub fn parse<'str>(
 
 #[cfg(test)]
 mod tests {
-  use bumpalo::Bump;
-
   use crate::parse::{
     components::{Component, ComponentField},
     data::src::ParseSrc,
@@ -130,7 +123,6 @@ mod tests {
 
   #[test]
   fn test_strip_comments() {
-    let arena = Bump::new();
     let mut src_str = String::from(
       "
 // this component is a component
@@ -151,14 +143,12 @@ component airton {\r\nint x;
 ",
     );
 
-    strip_comments(&arena, &mut src_str);
+    strip_comments(&mut src_str);
     assert_eq!(&src_str, &target_str);
   }
 
   #[test]
   fn test_parse() {
-    let arena = Bump::new();
-
     let src = ParseSrc::from(
       " \
       component transform { \
@@ -181,40 +171,36 @@ component airton {\r\nint x;
       ",
     );
 
-    let result = parse(&arena, src).expect("parse error");
+    let result = parse(src).expect("parse error");
     assert_eq!(
       result.value,
       Parsed {
-        components: bumpalo::vec![
-          in &arena;
-          Component::new("transform",
-            bumpalo::vec![in &arena;
+        components: vec![
+          Component::new(
+            "transform",
+            vec![
               ComponentField::new("double", "x"),
               ComponentField::new("double", "y"),
             ]
           ),
-          Component::new("render",
-            bumpalo::vec![in &arena;
-              ComponentField::new("texture_t", "texture"),
-            ]
+          Component::new(
+            "render",
+            vec![ComponentField::new("texture_t", "texture"),]
           ),
         ],
 
-        events: bumpalo::vec![
-          in &arena;
-          Event::new("mouse_click",
-            bumpalo::vec![in &arena;
-              EventField::new("double", "x"),
-              EventField::new("double", "y"),
-              EventField::new("uint8_t", "button"),
-            ]
-          ),
-        ],
+        events: vec![Event::new(
+          "mouse_click",
+          vec![
+            EventField::new("double", "x"),
+            EventField::new("double", "y"),
+            EventField::new("uint8_t", "button"),
+          ]
+        ),],
 
-        systems: bumpalo::vec![
-          in &arena;
-          System::new("move", bumpalo::vec![in &arena; "transform"]),
-          System::new("render", bumpalo::vec![in &arena; "transform", "render"]),
+        systems: vec![
+          System::new("move", vec!["transform"]),
+          System::new("render", vec!["transform", "render"]),
         ]
       }
     );

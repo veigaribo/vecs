@@ -1,5 +1,3 @@
-use bumpalo::{collections::Vec, Bump};
-
 use crate::parse::{
   basic::{
     identifiers::{is_identifier, parse_identifier},
@@ -29,21 +27,20 @@ impl<'str> ComponentField<'str> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Component<'str> {
   pub name: &'str str,
-  pub fields: Vec<'str, ComponentField<'str>>,
+  pub fields: Vec<ComponentField<'str>>,
 }
 
 impl<'str> Component<'str> {
-  pub fn new(name: &'str str, fields: Vec<'str, ComponentField<'str>>) -> Self {
+  pub fn new(name: &'str str, fields: Vec<ComponentField<'str>>) -> Self {
     Self { name, fields }
   }
 }
 
 pub fn parse_component<'str>(
-  arena: &'str Bump,
   mut src: ParseSrc<'str>,
 ) -> ParseResult<'str, Component<'str>> {
   let start = src.clone();
-  let mut fields = Vec::<ComponentField>::new_in(arena);
+  let mut fields = Vec::<ComponentField>::new();
 
   src = parse_str("component", src)?.src;
   src = parse_whitespace(src)?.src;
@@ -95,8 +92,6 @@ pub fn parse_component_field<'str>(
 
 #[cfg(test)]
 mod tests {
-  use bumpalo::Bump;
-
   use crate::parse::{
     components::{parse_component, parse_component_field, Component, ComponentField},
     data::src::ParseSrc,
@@ -117,8 +112,6 @@ mod tests {
 
   #[test]
   fn test_parse_component() {
-    let arena = Bump::new();
-
     // Good.
     let src = ParseSrc::new(
       None,
@@ -128,13 +121,12 @@ mod tests {
     } // math",
     );
 
-    let result = parse_component(&arena, src).expect("parse error");
+    let result = parse_component(src).expect("parse error");
     assert_eq!(
       result.value,
       Component::new(
         "vec2",
-        bumpalo::vec![
-          in &arena;
+        vec![
           ComponentField::new("double", "x"),
           ComponentField::new("double", "y")
         ]
@@ -149,15 +141,12 @@ mod tests {
     } // a",
     );
 
-    let result = parse_component(&arena, src).expect("parse error");
-    assert_eq!(
-      result.value,
-      Component::new("vec0", bumpalo::vec![in &arena;])
-    );
+    let result = parse_component(src).expect("parse error");
+    assert_eq!(result.value, Component::new("vec0", vec![]));
     assert_eq!(result.src.remaining_str(), " // a");
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let _ = parse_component(&arena, src).expect_err("parse not error");
+    let _ = parse_component(src).expect_err("parse not error");
   }
 }

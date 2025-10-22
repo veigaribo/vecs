@@ -5,9 +5,6 @@ members = ["vecs_cli"]
 [workspace.package]
 edition = "2024"
 
-[workspace.dependencies]
-bumpalo = { version = "3.19.0" }
-
 [profile.dev]
 panic = "abort"
 
