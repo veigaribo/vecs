@@ -1,9 +1,9 @@
 use std::io;
 
-use crate::parse::{components::Component, Parsed};
+use crate::parse::{struct_like::Struct, Parsed};
 
 pub fn gen_component_struct_name<'str, W: io::Write>(
-  component: &Component<'str>,
+  component: &Struct<'str>,
   w: &mut W,
 ) -> io::Result<()> {
   write!(w, "v_component_{}", component.name)?;
@@ -44,9 +44,8 @@ mod tests {
   use crate::{
     generate::generate,
     parse::{
-      components::{Component, ComponentField},
-      events::{Event, EventField},
-      systems::System,
+      function_like::Function,
+      struct_like::{Struct, StructField},
       Parsed,
     },
   };
@@ -55,28 +54,28 @@ mod tests {
   fn test_generate() {
     let data = Parsed {
       components: vec![
-        Component::new(
+        Struct::new(
           "transform",
           vec![
-            ComponentField::new("double", "x"),
-            ComponentField::new("double", "y"),
+            StructField::new("double", "x"),
+            StructField::new("double", "y"),
           ],
         ),
-        Component::new("render", vec![ComponentField::new("texture_t", "texture")]),
+        Struct::new("render", vec![StructField::new("texture_t", "texture")]),
       ],
 
-      events: vec![Event::new(
+      events: vec![Struct::new(
         "mouse_click",
         vec![
-          EventField::new("double", "x"),
-          EventField::new("double", "y"),
-          EventField::new("uint8_t", "button"),
+          StructField::new("double", "x"),
+          StructField::new("double", "y"),
+          StructField::new("uint8_t", "button"),
         ],
       )],
 
       systems: vec![
-        System::new("move", vec!["transform"]),
-        System::new("render", vec!["transform", "render"]),
+        Function::new("move", vec!["transform"]),
+        Function::new("render", vec!["transform", "render"]),
       ],
     };
 

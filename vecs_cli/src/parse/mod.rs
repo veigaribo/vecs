@@ -1,20 +1,18 @@
 pub mod basic;
 pub mod comments;
-pub mod components;
 pub mod data;
-pub mod events;
-pub mod systems;
+pub mod function_like;
+pub mod struct_like;
 
 use crate::parse::{
-  basic::str::parse_whitespace,
+  basic::{identifiers::parse_identifier, str::parse_whitespace},
   comments::parse_comment,
-  components::{parse_component, Component},
   data::{
     result::{ParseError, ParseResult, ParseSuccess},
     src::ParseSrc,
   },
-  events::{parse_event, Event},
-  systems::{parse_system, System},
+  function_like::{parse_function, Function},
+  struct_like::{parse_struct, Struct},
 };
 
 pub fn strip_comments(t: &mut str) {
@@ -53,9 +51,9 @@ pub fn strip_comments(t: &mut str) {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parsed<'str> {
-  pub components: Vec<Component<'str>>,
-  pub events: Vec<Event<'str>>,
-  pub systems: Vec<System<'str>>,
+  pub components: Vec<Struct<'str>>,
+  pub events: Vec<Struct<'str>>,
+  pub systems: Vec<Function<'str>>,
 }
 
 impl<'str> Parsed<'str> {
@@ -75,36 +73,44 @@ pub fn parse<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, Parsed<'str>> {
   src = parse_whitespace(src)?.src;
 
   loop {
-    if let Ok(success) = parse_component(src.clone()) {
-      parsed.components.push(success.value);
-      src = success.src;
-    } else if let Ok(success) = parse_event(src.clone()) {
-      parsed.events.push(success.value);
-      src = success.src;
-    } else if let Ok(success) = parse_system(src.clone()) {
-      parsed.systems.push(success.value);
-      src = success.src;
-    } else {
-      if src.is_empty() {
-        return Ok(ParseSuccess {
-          value: parsed,
-          span: src.span_from(&start),
-          src,
-        });
-      }
-
-      // The line or 200 bytes, whichever ends first.
-      let found = (0..200)
-        .into_iter()
-        .zip(src.clone().take_while(|c| *c != '\n'))
-        .map(|(_, c)| c)
-        .collect::<String>();
-
-      return Err(ParseError::new(
-        src.location,
-        format!("expected component, event or system, but found: {}", found),
-      ));
+    if src.is_empty() {
+      return Ok(ParseSuccess {
+        value: parsed,
+        span: src.span_from(&start),
+        src,
+      });
     }
+
+    let tag = parse_identifier(src)?;
+    src = tag.src;
+    src = parse_whitespace(src)?.src;
+
+    match tag.value {
+      "component" => {
+        let success = parse_struct(src.clone())?;
+        parsed.components.push(success.value);
+        src = success.src;
+      }
+      "event" => {
+        let success = parse_struct(src.clone())?;
+        parsed.events.push(success.value);
+        src = success.src;
+      }
+      "system" => {
+        let success = parse_function(src.clone())?;
+        parsed.systems.push(success.value);
+        src = success.src;
+      }
+      unrecognized => {
+        return Err(ParseError::new(
+          src.location,
+          format!(
+            "expected `component`, `event` or `system`, but found `{}`",
+            unrecognized
+          ),
+        ));
+      }
+    };
 
     src = parse_whitespace(src)?.src;
   }
@@ -113,11 +119,10 @@ pub fn parse<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, Parsed<'str>> {
 #[cfg(test)]
 mod tests {
   use crate::parse::{
-    components::{Component, ComponentField},
     data::src::ParseSrc,
-    events::{Event, EventField},
+    function_like::Function,
     parse, strip_comments,
-    systems::System,
+    struct_like::{Struct, StructField},
     Parsed,
   };
 
@@ -176,31 +181,28 @@ component airton {\r\nint x;
       result.value,
       Parsed {
         components: vec![
-          Component::new(
+          Struct::new(
             "transform",
             vec![
-              ComponentField::new("double", "x"),
-              ComponentField::new("double", "y"),
+              StructField::new("double", "x"),
+              StructField::new("double", "y"),
             ]
           ),
-          Component::new(
-            "render",
-            vec![ComponentField::new("texture_t", "texture"),]
-          ),
+          Struct::new("render", vec![StructField::new("texture_t", "texture"),]),
         ],
 
-        events: vec![Event::new(
+        events: vec![Struct::new(
           "mouse_click",
           vec![
-            EventField::new("double", "x"),
-            EventField::new("double", "y"),
-            EventField::new("uint8_t", "button"),
+            StructField::new("double", "x"),
+            StructField::new("double", "y"),
+            StructField::new("uint8_t", "button"),
           ]
         ),],
 
         systems: vec![
-          System::new("move", vec!["transform"]),
-          System::new("render", vec!["transform", "render"]),
+          Function::new("move", vec!["transform"]),
+          Function::new("render", vec!["transform", "render"]),
         ]
       }
     );

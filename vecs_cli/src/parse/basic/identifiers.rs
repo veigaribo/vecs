@@ -14,7 +14,7 @@ pub fn parse_identifier<'str>(
       return Err(ParseError::new(
         start.location,
         format!(
-          "expected and identifier, but '{}' is not a valid identifier start",
+          "expected an identifier, but '{}' is not a valid identifier start",
           first,
         ),
       ));

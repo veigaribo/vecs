@@ -1,7 +1,7 @@
 use crate::parse::{
   basic::{
     identifiers::parse_identifier,
-    str::{parse_char, parse_str, parse_whitespace},
+    str::{parse_char, parse_whitespace},
   },
   data::{
     result::{ParseResult, ParseSuccess},
@@ -10,25 +10,22 @@ use crate::parse::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct System<'str> {
+pub struct Function<'str> {
   name: &'str str,
   params: Vec<&'str str>,
 }
 
-impl<'str> System<'str> {
+impl<'str> Function<'str> {
   pub fn new(name: &'str str, params: Vec<&'str str>) -> Self {
     Self { name, params }
   }
 }
 
-pub fn parse_system<'str>(
+pub fn parse_function<'str>(
   mut src: ParseSrc<'str>,
-) -> ParseResult<'str, System<'str>> {
+) -> ParseResult<'str, Function<'str>> {
   let start = src.clone();
   let mut params = Vec::<&'str str>::new();
-
-  src = parse_str("system", src)?.src;
-  src = parse_whitespace(src)?.src;
 
   let parsed_name = parse_identifier(src)?;
   src = parsed_name.src;
@@ -48,7 +45,7 @@ pub fn parse_system<'str>(
       src = parse_char(')', src)?.src;
 
       return Ok(ParseSuccess {
-        value: System::new(parsed_name.value, params),
+        value: Function::new(parsed_name.value, params),
         span: src.span_from(&start),
         src,
       });
@@ -77,7 +74,7 @@ pub fn parse_system<'str>(
   src = parse_char(')', src)?.src;
 
   Ok(ParseSuccess {
-    value: System::new(parsed_name.value, params),
+    value: Function::new(parsed_name.value, params),
     span: src.span_from(&start),
     src,
   })
@@ -87,43 +84,43 @@ pub fn parse_system<'str>(
 mod tests {
   use crate::parse::{
     data::src::ParseSrc,
-    systems::{parse_system, System},
+    function_like::{parse_function, Function},
   };
 
   #[test]
-  fn test_parse_system() {
+  fn test_parse_function() {
     // Good.
-    let src = ParseSrc::new(None, "system render(transform, render) // b");
-    let result = parse_system(src).expect("parse error");
+    let src = ParseSrc::new(None, "render(transform, render) // b");
+    let result = parse_function(src).expect("parse error");
     assert_eq!(
       result.value,
-      System::new("render", vec!["transform", "render"])
+      Function::new("render", vec!["transform", "render"])
     );
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Good. No components.
-    let src = ParseSrc::new(None, "system render() // b");
-    let result = parse_system(src).expect("parse error");
-    assert_eq!(result.value, System::new("render", vec![]));
+    let src = ParseSrc::new(None, "render() // b");
+    let result = parse_function(src).expect("parse error");
+    assert_eq!(result.value, Function::new("render", vec![]));
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Good. One component.
-    let src = ParseSrc::new(None, "system move(transform) // b");
-    let result = parse_system(src).expect("parse error");
-    assert_eq!(result.value, System::new("move", vec!["transform"]));
+    let src = ParseSrc::new(None, "move(transform) // b");
+    let result = parse_function(src).expect("parse error");
+    assert_eq!(result.value, Function::new("move", vec!["transform"]));
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Good. Trailing comma.
-    let src = ParseSrc::new(None, "system render(transform, render,) // b");
-    let result = parse_system(src).expect("parse error");
+    let src = ParseSrc::new(None, "render(transform, render,) // b");
+    let result = parse_function(src).expect("parse error");
     assert_eq!(
       result.value,
-      System::new("render", vec!["transform", "render"])
+      Function::new("render", vec!["transform", "render"])
     );
     assert_eq!(result.src.remaining_str(), " // b");
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let _ = parse_system(src).expect_err("parse not error");
+    let _ = parse_function(src).expect_err("parse not error");
   }
 }
