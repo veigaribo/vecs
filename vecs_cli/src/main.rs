@@ -1,13 +1,17 @@
+#![feature(assert_matches)]
+
 mod cli;
+mod generate;
 mod parse;
 
-use std::fs;
+use std::{fs, io::stdout};
 
 use bumpalo::Bump;
 use clap::Parser as _;
 
 use crate::{
   cli::Cli,
+  generate::generate,
   parse::{data::src::ParseSrc, parse, strip_comments},
 };
 
@@ -21,5 +25,6 @@ fn main() {
   let src = ParseSrc::new(Some(&cli.source), &src_str);
   let success = parse(&arena, src).expect("parsing error");
 
-  println!("{:?}", success.value);
+  let mut out = stdout();
+  generate(success.value, &mut out).expect("error generating output");
 }

@@ -1,8 +1,8 @@
-use bumpalo::{Bump, collections::Vec};
+use bumpalo::{collections::Vec, Bump};
 
 use crate::parse::{
   basic::{
-    identifiers::parse_identifier,
+    identifiers::{is_identifier, parse_identifier},
     str::{parse_char, parse_str, parse_whitespace},
   },
   data::{
@@ -13,20 +13,23 @@ use crate::parse::{
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ComponentField<'str> {
-  typ: &'str str,
-  name: &'str str,
+  pub typ: &'str str,
+  pub name: &'str str,
 }
 
 impl<'str> ComponentField<'str> {
   pub fn new(typ: &'str str, name: &'str str) -> Self {
+    debug_assert!(is_identifier(typ));
+    debug_assert!(is_identifier(name));
+
     Self { typ, name }
   }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Component<'str> {
-  name: &'str str,
-  fields: Vec<'str, ComponentField<'str>>,
+  pub name: &'str str,
+  pub fields: Vec<'str, ComponentField<'str>>,
 }
 
 impl<'str> Component<'str> {
@@ -95,7 +98,7 @@ mod tests {
   use bumpalo::Bump;
 
   use crate::parse::{
-    components::{Component, ComponentField, parse_component, parse_component_field},
+    components::{parse_component, parse_component_field, Component, ComponentField},
     data::src::ParseSrc,
   };
 

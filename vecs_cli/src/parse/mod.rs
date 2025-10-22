@@ -1,22 +1,22 @@
-mod basic;
+pub mod basic;
 pub mod comments;
 pub mod components;
 pub mod data;
 pub mod events;
 pub mod systems;
 
-use bumpalo::{Bump, collections::Vec};
+use bumpalo::{collections::Vec, Bump};
 
 use crate::parse::{
   basic::str::parse_whitespace,
   comments::parse_comment,
-  components::{Component, parse_component},
+  components::{parse_component, Component},
   data::{
     result::{ParseError, ParseResult, ParseSuccess},
     src::ParseSrc,
   },
-  events::{Event, parse_event},
-  systems::{System, parse_system},
+  events::{parse_event, Event},
+  systems::{parse_system, System},
 };
 
 pub fn strip_comments(arena: &Bump, t: &mut str) {
@@ -120,12 +120,12 @@ mod tests {
   use bumpalo::Bump;
 
   use crate::parse::{
-    Parsed,
     components::{Component, ComponentField},
     data::src::ParseSrc,
     events::{Event, EventField},
     parse, strip_comments,
     systems::System,
+    Parsed,
   };
 
   #[test]
