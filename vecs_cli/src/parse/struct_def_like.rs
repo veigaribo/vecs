@@ -9,6 +9,8 @@ use crate::parse::{
   },
 };
 
+// `component`s and `event`s are examples of struct-def-likes.
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StructField<'str> {
   pub typ: &'str str,
@@ -35,7 +37,7 @@ impl<'str> Struct<'str> {
   }
 }
 
-pub fn parse_struct<'str>(
+pub fn parse_struct_def<'str>(
   mut src: ParseSrc<'str>,
 ) -> ParseResult<'str, Struct<'str>> {
   let start = src.clone();
@@ -115,7 +117,7 @@ pub fn parse_struct_field<'str>(
 mod tests {
   use crate::parse::{
     data::src::ParseSrc,
-    struct_like::{parse_struct, parse_struct_field, Struct, StructField},
+    struct_def_like::{parse_struct_def, parse_struct_field, Struct, StructField},
   };
 
   #[test]
@@ -143,7 +145,7 @@ mod tests {
     } // math",
     );
 
-    let result = parse_struct(src).expect("parse error");
+    let result = parse_struct_def(src).expect("parse error");
     assert_eq!(
       result.value,
       Struct::new(
@@ -164,12 +166,12 @@ mod tests {
     } // a",
     );
 
-    let result = parse_struct(src).expect("parse error");
+    let result = parse_struct_def(src).expect("parse error");
     assert_eq!(result.value, Struct::new("vec0", vec![]));
     assert_eq!(result.src.remaining_str(), " // a");
 
     // Different characters.
     let src = ParseSrc::new(None, ";abc");
-    let _ = parse_struct(src).expect_err("parse not error");
+    let _ = parse_struct_def(src).expect_err("parse not error");
   }
 }

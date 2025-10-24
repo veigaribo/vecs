@@ -45,6 +45,15 @@ impl<'str> ParseSrc<'str> {
     clone.next()
   }
 
+  pub fn advance_bytes(&mut self, bytes: usize) {
+    let start_offset = self.location.byte_offset;
+    let final_offset = start_offset + bytes;
+
+    while self.location.byte_offset < final_offset {
+      self.next();
+    }
+  }
+
   #[cfg(test)]
   pub fn remaining_str(&self) -> String {
     self.chars.clone().collect::<String>()

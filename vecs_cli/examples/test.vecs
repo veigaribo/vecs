@@ -13,5 +13,17 @@ event mouse_click {
   uint8_t button;
 }
 
-system move(transform)
-system render(transform, render)
+system move { transform }
+system render { transform, render }
+
+// state main {
+//   components {
+//     transform { max = 100 },
+//     render { max = 100 },
+//   };
+// 
+//   systems {
+//     { move },
+//     { render },
+//   };
+// }

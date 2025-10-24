@@ -1,16 +1,16 @@
 use std::io;
 
-use crate::parse::{struct_like::Struct, Parsed};
+use crate::parse::ast::{Ast, Component};
 
 pub fn gen_component_struct_name<'str, W: io::Write>(
-  component: &Struct<'str>,
+  component: &Component<'str>,
   w: &mut W,
 ) -> io::Result<()> {
   write!(w, "v_component_{}", component.name)?;
   Ok(())
 }
 
-pub fn generate<'str, W: io::Write>(data: Parsed<'str>, w: &mut W) -> io::Result<()> {
+pub fn generate<'str, W: io::Write>(data: Ast<'str>, w: &mut W) -> io::Result<()> {
   let prelude = include_str!("prelude.c");
 
   write!(w, "{}\n", prelude)?;
@@ -21,7 +21,7 @@ pub fn generate<'str, W: io::Write>(data: Parsed<'str>, w: &mut W) -> io::Result
     gen_component_struct_name(&component, w)?;
     write!(w, " {{")?;
 
-    for field in component.fields.iter() {
+    for field in component.content.fields.iter() {
       write!(w, "{} {};", field.typ, field.name)?;
     }
     write!(w, "}};")?;
@@ -44,38 +44,50 @@ mod tests {
   use crate::{
     generate::generate,
     parse::{
-      function_like::Function,
-      struct_like::{Struct, StructField},
-      Parsed,
+      ast::{Ast, Component, Event, System},
+      expressions::common::{table, Expression},
+      struct_def_like::{Struct, StructField},
     },
   };
 
   #[test]
   fn test_generate() {
-    let data = Parsed {
+    let data = Ast {
       components: vec![
-        Struct::new(
+        Component::new(
           "transform",
+          Struct::new(
+            "transform",
+            vec![
+              StructField::new("double", "x"),
+              StructField::new("double", "y"),
+            ],
+          ),
+        ),
+        Component::new(
+          "render",
+          Struct::new("render", vec![StructField::new("texture_t", "texture")]),
+        ),
+      ],
+
+      events: vec![Event::new(
+        "mouse_click",
+        Struct::new(
+          "mouse_click",
           vec![
             StructField::new("double", "x"),
             StructField::new("double", "y"),
+            StructField::new("uint8_t", "button"),
           ],
         ),
-        Struct::new("render", vec![StructField::new("texture_t", "texture")]),
-      ],
-
-      events: vec![Struct::new(
-        "mouse_click",
-        vec![
-          StructField::new("double", "x"),
-          StructField::new("double", "y"),
-          StructField::new("uint8_t", "button"),
-        ],
       )],
 
       systems: vec![
-        Function::new("move", vec!["transform"]),
-        Function::new("render", vec!["transform", "render"]),
+        System::new("move", Expression::Table(table!(sym "transform",))),
+        System::new(
+          "render",
+          Expression::Table(table!(sym "transform", sym "render",)),
+        ),
       ],
     };
 

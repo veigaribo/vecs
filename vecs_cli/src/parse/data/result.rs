@@ -29,6 +29,24 @@ impl<'str> ParseError<'str> {
       message: message.into(),
     }
   }
+
+  pub fn wrap_message<T>(self, msg: T) -> ParseError<'str>
+  where
+    T: Into<Cow<'static, str>>,
+  {
+    let wrapped_msg = format!("{}: {}", msg.into(), self.message.as_ref());
+    self.sub_message(Cow::Owned(wrapped_msg))
+  }
+
+  pub fn sub_message<T>(self, msg: T) -> ParseError<'str>
+  where
+    T: Into<Cow<'static, str>>,
+  {
+    ParseError {
+      location: self.location,
+      message: msg.into(),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -41,21 +59,21 @@ where
   pub src: ParseSrc<'str>,
 }
 
-// impl<'str, T> ParseSuccess<'str, T>
-// where
-//   T: std::fmt::Debug + Clone,
-// {
-//   pub fn map<F, U>(self, f: F) -> ParseSuccess<'str, U>
-//   where
-//     U: std::fmt::Debug + Clone,
-//     F: FnOnce(T) -> U,
-//   {
-//     ParseSuccess {
-//       value: f(self.value),
-//       span: self.span,
-//       src: self.src,
-//     }
-//   }
-// }
+impl<'str, T> ParseSuccess<'str, T>
+where
+  T: std::fmt::Debug + Clone,
+{
+  pub fn map<F, U>(self, f: F) -> ParseSuccess<'str, U>
+  where
+    U: std::fmt::Debug + Clone,
+    F: FnOnce(T) -> U,
+  {
+    ParseSuccess {
+      value: f(self.value),
+      span: self.span,
+      src: self.src,
+    }
+  }
+}
 
 pub type ParseResult<'str, T> = Result<ParseSuccess<'str, T>, ParseError<'str>>;
