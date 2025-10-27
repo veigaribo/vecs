@@ -1,10 +1,10 @@
 use crate::parse::{
-  basic::{identifiers::parse_identifier, str::parse_char},
+  ast::Expression,
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
   },
-  expressions::common::Expression,
+  util::{identifiers::parse_identifier, str::parse_char},
 };
 
 // This parses variable accesses.
@@ -32,8 +32,7 @@ pub fn parse_variable<'str>(
 #[cfg(test)]
 mod tests {
   use crate::parse::{
-    data::src::ParseSrc,
-    expressions::{common::Expression, variable::parse_variable},
+    ast::var, data::src::ParseSrc, expressions::variable::parse_variable,
   };
 
   #[test]
@@ -41,13 +40,13 @@ mod tests {
     // Good EOF.
     let src = ParseSrc::new(None, "$foo");
     let result = parse_variable(src).expect("parse error");
-    assert_eq!(result.value, Expression::Variable("foo"));
+    assert_eq!(result.value, var!("foo"));
     assert_eq!(result.src.remaining_str(), "");
 
     // Good.
     let src = ParseSrc::new(None, "$alice bob");
     let result = parse_variable(src).expect("parse error");
-    assert_eq!(result.value, Expression::Variable("alice"));
+    assert_eq!(result.value, var!("alice"));
     assert_eq!(result.src.remaining_str(), " bob");
 
     // Different characters.

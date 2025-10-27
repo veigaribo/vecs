@@ -43,20 +43,9 @@ pub fn parse_identifier<'str>(
   })
 }
 
-/// Intended for assertions.
-pub fn is_identifier(s: &str) -> bool {
-  let result = parse_identifier(ParseSrc::new(None, s));
-
-  if let Ok(result) = result {
-    result.src.is_empty()
-  } else {
-    false
-  }
-}
-
 #[cfg(test)]
 mod tests {
-  use crate::parse::{basic::identifiers::parse_identifier, data::src::ParseSrc};
+  use crate::parse::{data::src::ParseSrc, util::identifiers::parse_identifier};
 
   #[test]
   fn test_parse_identifier() {

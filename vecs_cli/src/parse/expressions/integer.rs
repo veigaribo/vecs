@@ -3,12 +3,12 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::parse::{
-  basic::regex::parse_regex,
+  ast::Expression,
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
   },
-  expressions::common::Expression,
+  util::regex::parse_regex,
 };
 
 static INTEGER_REGEX: LazyLock<Regex> =
@@ -42,8 +42,7 @@ pub fn parse_integer<'str>(
 #[cfg(test)]
 mod tests {
   use crate::parse::{
-    data::src::ParseSrc,
-    expressions::{common::Expression, integer::parse_integer},
+    ast::int, data::src::ParseSrc, expressions::integer::parse_integer,
   };
 
   #[test]
@@ -51,13 +50,13 @@ mod tests {
     // Good EOF.
     let src = ParseSrc::new(None, "12_345");
     let result = parse_integer(src).expect("parse error");
-    assert_eq!(result.value, Expression::Integer(12345));
+    assert_eq!(result.value, int!(12345));
     assert_eq!(result.src.remaining_str(), "");
 
     // Good.
     let src = ParseSrc::new(None, "12345 6789");
     let result = parse_integer(src).expect("parse error");
-    assert_eq!(result.value, Expression::Integer(12345));
+    assert_eq!(result.value, int!(12345));
     assert_eq!(result.src.remaining_str(), " 6789");
 
     // Different characters.

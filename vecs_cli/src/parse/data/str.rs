@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Location<'str> {
   pub file: Option<&'str str>,
   pub byte_offset: usize,
@@ -50,7 +50,7 @@ impl<'str> std::fmt::Display for Location<'str> {
   }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Span<'str> {
   pub start: Location<'str>,
   pub end: Location<'str>,
@@ -65,6 +65,7 @@ impl<'str> Span<'str> {
     &text[self.start.byte_offset..self.end.byte_offset]
   }
 
+  /// In bytes.
   pub fn len(&self) -> usize {
     self.end.byte_offset - self.start.byte_offset
   }

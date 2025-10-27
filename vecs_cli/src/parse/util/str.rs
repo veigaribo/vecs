@@ -95,7 +95,7 @@ pub fn parse_whitespace<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, ()> 
 #[cfg(test)]
 mod tests {
   use crate::parse::{
-    basic::str::{parse_str, parse_whitespace},
+    util::str::{parse_str, parse_whitespace},
     data::src::ParseSrc,
   };
 

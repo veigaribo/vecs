@@ -1,7 +1,7 @@
 use crate::parse::{
-  basic::identifiers::parse_identifier,
+  ast::Expression,
   data::{result::ParseResult, src::ParseSrc},
-  expressions::common::Expression,
+  util::identifiers::parse_identifier,
 };
 
 pub fn parse_symbol<'str>(
@@ -13,8 +13,7 @@ pub fn parse_symbol<'str>(
 #[cfg(test)]
 mod tests {
   use crate::parse::{
-    data::src::ParseSrc,
-    expressions::{common::Expression, symbol::parse_symbol},
+    ast::sym, data::src::ParseSrc, expressions::symbol::parse_symbol,
   };
 
   #[test]
@@ -22,13 +21,13 @@ mod tests {
     // Good EOF.
     let src = ParseSrc::new(None, "vec2");
     let result = parse_symbol(src).expect("parse error");
-    assert_eq!(result.value, Expression::Symbol("vec2"));
+    assert_eq!(result.value, sym!("vec2"));
     assert_eq!(result.src.remaining_str(), "");
 
     // Good.
     let src = ParseSrc::new(None, "vec3 vec2");
     let result = parse_symbol(src).expect("parse error");
-    assert_eq!(result.value, Expression::Symbol("vec3"));
+    assert_eq!(result.value, sym!("vec3"));
     assert_eq!(result.src.remaining_str(), " vec2");
 
     // Different characters.

@@ -54,6 +54,30 @@ impl<'str> ParseSrc<'str> {
     }
   }
 
+  // We don't really have the concept of a token, but this is useful to make error
+  // messages.
+  pub fn peek_next_token_ish(&self) -> String {
+    let max_len = 100;
+    let clone = self.clone();
+
+    let mut accum = String::new();
+
+    for c in clone {
+      if c.is_whitespace() {
+        break;
+      }
+
+      if accum.len() >= max_len {
+        accum.push_str("...");
+        break;
+      }
+
+      accum.push(c);
+    }
+
+    accum
+  }
+
   #[cfg(test)]
   pub fn remaining_str(&self) -> String {
     self.chars.clone().collect::<String>()

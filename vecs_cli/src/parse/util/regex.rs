@@ -47,7 +47,7 @@ pub fn parse_regex<'str>(
 mod tests {
   use regex::Regex;
 
-  use crate::parse::{basic::regex::parse_regex, data::src::ParseSrc};
+  use crate::parse::{util::regex::parse_regex, data::src::ParseSrc};
 
   #[test]
   fn test_parse_regex() {

@@ -1,5 +1,5 @@
 use crate::parse::{
-  basic::str::parse_str,
+  util::str::parse_str,
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,

@@ -1,56 +1,133 @@
-use crate::parse::{expressions::common::Expression, struct_def_like::Struct};
-
-// TODO: Include source location information.
-
+// A positional entry in a table may be a normal value or the embedment of another
+// table.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Component<'str> {
-  pub name: &'str str,
-  pub content: Struct<'str>,
-}
-
-impl<'str> Component<'str> {
-  pub fn new(name: &'str str, content: Struct<'str>) -> Self {
-    Self { name, content }
-  }
+pub enum ListEntry<'str> {
+  Expr(Expression<'str>),
+  Embed(Expression<'str>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Event<'str> {
-  pub name: &'str str,
-  pub content: Struct<'str>,
-}
+pub enum Expression<'str> {
+  Integer(i128),
+  Symbol(&'str str),
+  Variable(&'str str),
 
-impl<'str> Event<'str> {
-  pub fn new(name: &'str str, content: Struct<'str>) -> Self {
-    Self { name, content }
-  }
+  Application(Vec<Expression<'str>>),
+  List(Vec<ListEntry<'str>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct System<'str> {
-  pub name: &'str str,
-  pub content: Expression<'str>,
+pub struct Ast<'str>(pub Vec<Expression<'str>>);
+
+// Macros to help building expressions. Currently only for tests.
+
+#[cfg(test)]
+macro_rules! int {
+  ($value:expr) => {
+    crate::parse::ast::Expression::Integer($value)
+  };
 }
 
-impl<'str> System<'str> {
-  pub fn new(name: &'str str, content: Expression<'str>) -> Self {
-    Self { name, content }
-  }
+#[cfg(test)]
+pub(crate) use int;
+
+#[cfg(test)]
+macro_rules! sym {
+  ($value:expr) => {
+    crate::parse::ast::Expression::Symbol($value)
+  };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Ast<'str> {
-  pub components: Vec<Component<'str>>,
-  pub events: Vec<Event<'str>>,
-  pub systems: Vec<System<'str>>,
+#[cfg(test)]
+pub(crate) use sym;
+
+#[cfg(test)]
+macro_rules! var {
+  ($value:expr) => {
+    crate::parse::ast::Expression::Variable($value)
+  };
 }
 
-impl<'str> Ast<'str> {
-  pub fn new() -> Self {
-    Self {
-      components: Vec::new(),
-      events: Vec::new(),
-      systems: Vec::new(),
-    }
-  }
+#[cfg(test)]
+pub(crate) use var;
+
+#[cfg(test)]
+macro_rules! list_internal {
+  ($list:ident;) => {};
+
+  ($list:ident; ...$value:expr, $($rest:tt)*) => {
+    let entry = crate::parse::ast::ListEntry::Embed($value);
+
+    $list.push(entry);
+    crate::parse::ast::list_internal!($list; $($rest)*);
+  };
+
+  ($list:ident; ...$value:expr) => {
+    let entry = crate::parse::ast::ListEntry::Embed($value);
+
+    $list.push(entry);
+  };
+
+  ($list:ident; $value:expr, $($rest:tt)*) => {
+    let entry = crate::parse::ast::ListEntry::Expr($value);
+
+    $list.push(entry);
+    crate::parse::ast::list_internal!($list; $($rest)*);
+  };
+
+  ($list:ident; $value:expr) => {
+    let entry = crate::parse::ast::ListEntry::Expr($value);
+
+    $list.push(entry);
+  };
 }
+
+#[cfg(test)]
+pub(crate) use list_internal;
+
+#[cfg(test)]
+macro_rules! list {
+  ($($tt:tt)*) => {{
+    use crate::parse::ast::{Expression, ListEntry, list_internal};
+
+    #[allow(unused_mut)]
+    let mut v = Vec::<ListEntry>::new();
+    list_internal!(v; $($tt)*);
+    Expression::List(v)
+  }};
+}
+
+#[cfg(test)]
+pub(crate) use list;
+
+#[cfg(test)]
+macro_rules! app_internal {
+  ($seq:ident;) => {};
+
+  ($seq:ident; $value:expr, $($rest:tt)*) => {
+    $seq.push($value);
+    crate::parse::ast::app_internal!($seq; $($rest)*);
+  };
+
+  ($seq:ident; $value:expr) => {
+    $seq.push($value);
+  };
+}
+
+#[cfg(test)]
+pub(crate) use app_internal;
+
+#[cfg(test)]
+macro_rules! app {
+  ($($tt:tt)*) => {{
+    use crate::parse::ast::{Expression, app_internal};
+
+    #[allow(unused_mut)]
+    let mut v = Vec::<Expression>::new();
+    app_internal!(v; $($tt)*);
+    Expression::Application(v)
+  }};
+}
+
+#[cfg(test)]
+pub(crate) use app;
