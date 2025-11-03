@@ -1,40 +1,56 @@
 use std::io;
 
-use crate::parse::ast::Ast;
+use crate::resolve::cst::{Cst, Struct};
 
-// pub fn gen_component_struct_name<'str, W: io::Write>(
-//   component: &Component<'str>,
-//   w: &mut W,
-// ) -> io::Result<()> {
-//   write!(w, "v_component_{}", component.name)?;
-//   Ok(())
-// }
+pub fn gen_component_struct_name<'str, W: io::Write>(
+  component: &Struct<'str>,
+  w: &mut W,
+) -> io::Result<()> {
+  write!(w, "v_component_{}", component.name)?;
+  Ok(())
+}
 
-pub fn generate<'str, W: io::Write>(_: Ast<'str>, w: &mut W) -> io::Result<()> {
+pub fn generate<'str, W: io::Write>(data: Cst<'str>, w: &mut W) -> io::Result<()> {
   let prelude = include_str!("prelude.c");
 
   write!(w, "{}\n", prelude)?;
 
-  // // Component structs.
-  // for component in data.components.iter() {
-  //   write!(w, "struct ")?;
-  //   gen_component_struct_name(&component, w)?;
-  //   write!(w, " {{")?;
+  // Component structs.
+  for component in data.components.values() {
+    write!(w, "struct ")?;
+    gen_component_struct_name(&component, w)?;
+    write!(w, " {{")?;
 
-  //   for field in component.content.fields.iter() {
-  //     write!(w, "{} {};", field.typ, field.name)?;
-  //   }
-  //   write!(w, "}};")?;
-  // }
+    for field in component.fields.iter() {
+      for typ_segment in field.typ.iter() {
+        write!(w, "{} ", typ_segment)?;
+      }
 
-  // // Component union.
-  // write!(w, "union v_component {{")?;
-  // for component in data.components.iter() {
-  //   write!(w, "struct ")?;
-  //   gen_component_struct_name(&component, w)?;
-  //   write!(w, " {};", component.name)?;
-  // }
-  // write!(w, "}};")?;
+      write!(w, "{};", field.name)?;
+    }
+    write!(w, "}};")?;
+  }
+
+  // Component union.
+  write!(w, "union v_component {{")?;
+  for component in data.components.values() {
+    write!(w, "struct ")?;
+    gen_component_struct_name(&component, w)?;
+    write!(w, " {};", component.name)?;
+  }
+  write!(w, "}};")?;
+
+  // TODO: Hook up systems.
+  write!(w, "\n")?;
+  for system in data.systems.iter() {
+    write!(w, "// {}(", system.name)?;
+
+    for param in system.params.iter() {
+      write!(w, "{},", param)?;
+    }
+
+    write!(w, ")\n")?;
+  }
 
   Ok(())
 }

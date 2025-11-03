@@ -1,5 +1,5 @@
 use crate::parse::{
-  ast::Expression,
+  ast::{Expression, ExpressionKind},
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
@@ -22,9 +22,10 @@ pub fn parse_variable<'str>(
 
   src = name.src;
 
+  let span = src.span_from(&start);
   Ok(ParseSuccess {
-    value: Expression::Variable(name.value),
-    span: src.span_from(&start),
+    value: Expression::new(ExpressionKind::Variable(name.value), span),
+    span,
     src,
   })
 }

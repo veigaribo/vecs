@@ -1,5 +1,5 @@
 use crate::parse::{
-  ast::Expression,
+  ast::{Expression, ExpressionKind},
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
@@ -36,9 +36,10 @@ pub fn parse_application<'str>(
     }
   }
 
+  let span = src.span_from(&start);
   Ok(ParseSuccess {
-    value: Expression::Application(seq),
-    span: src.span_from(&start),
+    value: Expression::new(ExpressionKind::Application(seq), span),
+    span,
     src,
   })
 }

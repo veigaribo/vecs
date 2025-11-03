@@ -25,7 +25,7 @@ pub fn strip_comments(t: &mut str) {
         src = success.src;
 
         let span = success.span;
-        spans.push((span.start.byte_offset, span.end.byte_offset));
+        spans.push((span.start_byte_offset, span.end_byte_offset));
       }
       Err(_) => {
         let c = src.next();
@@ -67,11 +67,14 @@ pub fn parse<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, Ast<'str>> {
     src = parse_whitespace(expr.src)?.src;
     parsed.push(expr.value);
 
-    let whatever =
+    let mut whatever =
       parse_char(';', src.clone()).or_else(|_| parse_char(',', src.clone()));
 
-    if let Ok(success) = whatever {
+    // Gobble extraneous separators.
+    while let Ok(success) = whatever {
       src = parse_whitespace(success.src)?.src;
+      whatever =
+        parse_char(';', src.clone()).or_else(|_| parse_char(',', src.clone()));
     }
   }
 

@@ -1,5 +1,5 @@
 use crate::parse::{
-  ast::{Expression, ListEntry},
+  ast::{Expression, ExpressionKind, ListEntry},
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
@@ -25,9 +25,10 @@ pub fn parse_list<'str>(
     src = finish.src;
     list.shrink_to_fit();
 
+    let span = src.span_from(&start);
     return Ok(ParseSuccess {
-      value: Expression::List(list),
-      span: src.span_from(&start),
+      value: Expression::new(ExpressionKind::List(list), span),
+      span,
       src,
     });
   }
@@ -67,9 +68,10 @@ pub fn parse_list<'str>(
     }
   }
 
+  let span = src.span_from(&start);
   Ok(ParseSuccess {
-    value: Expression::List(list),
-    span: src.span_from(&start),
+    value: Expression::new(ExpressionKind::List(list), span),
+    span,
     src,
   })
 }

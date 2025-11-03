@@ -1,3 +1,9 @@
+use std::fmt;
+
+#[cfg(test)]
+use crate::parse::data::str::Location;
+use crate::parse::data::str::Span;
+
 // A positional entry in a table may be a normal value or the embedment of another
 // table.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -7,7 +13,7 @@ pub enum ListEntry<'str> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression<'str> {
+pub enum ExpressionKind<'str> {
   Integer(i128),
   Symbol(&'str str),
   Variable(&'str str),
@@ -16,25 +22,120 @@ pub enum Expression<'str> {
   List(Vec<ListEntry<'str>>),
 }
 
+#[derive(Debug, Clone, Eq, Educe)]
+#[educe(PartialEq)]
+pub struct Expression<'str> {
+  pub kind: ExpressionKind<'str>,
+
+  #[educe(PartialEq(ignore))]
+  pub span: Span<'str>,
+}
+
+fn write_indent<W: fmt::Write>(w: &mut W, indent: usize) -> fmt::Result {
+  for _ in 0..indent {
+    w.write_char(' ')?;
+  }
+
+  Ok(())
+}
+
+impl<'str> Expression<'str> {
+  pub fn new(kind: ExpressionKind<'str>, span: Span<'str>) -> Self {
+    Self { kind, span }
+  }
+
+  fn show<W: fmt::Write>(&self, indent: usize, w: &mut W) -> fmt::Result {
+    let span = self.span;
+
+    match &self.kind {
+      ExpressionKind::Integer(value) => writeln!(w, "int ({}) {}", span, value),
+      ExpressionKind::Symbol(value) => writeln!(w, "sym ({}) {}", span, value),
+      ExpressionKind::Variable(value) => writeln!(w, "var ({}) {}", span, value),
+      ExpressionKind::Application(expressions) => {
+        if expressions.is_empty() {
+          write!(w, "app ({}) {{}}\n", span)
+        } else {
+          write!(w, "app ({}) {{\n", span)?;
+
+          for param in expressions {
+            write_indent(w, indent)?;
+            param.show(indent + 1, w)?;
+          }
+
+          write_indent(w, indent - 1)?;
+          write!(w, "}}\n")
+        }
+      }
+      ExpressionKind::List(items) => {
+        if items.is_empty() {
+          write!(w, "list ({}) {{}}\n", span)
+        } else {
+          write!(w, "list ({}) {{\n", span)?;
+
+          for item in items {
+            write_indent(w, indent)?;
+
+            match item {
+              ListEntry::Expr(expression) => {
+                expression.show(indent + 1, w)?;
+              }
+              ListEntry::Embed(expression) => {
+                write!(w, "...")?;
+                expression.show(indent + 1, w)?;
+              }
+            }
+          }
+
+          write_indent(w, indent - 1)?;
+          write!(w, "}}\n")
+        }
+      }
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ast<'str>(pub Vec<Expression<'str>>);
+
+impl<'str> fmt::Display for Ast<'str> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "Ast\n")?;
+
+    for expr in self.0.iter() {
+      expr.show(1, f)?;
+    }
+
+    Ok(())
+  }
+}
 
 // Macros to help building expressions. Currently only for tests.
 
 #[cfg(test)]
+pub static DUMMY_SPAN: Span =
+  Span::new(Location::new(Some("test")), Location::new(Some("test")));
+
+#[cfg(test)]
 macro_rules! int {
   ($value:expr) => {
-    crate::parse::ast::Expression::Integer($value)
+    crate::parse::ast::Expression::new(
+      crate::parse::ast::ExpressionKind::Integer($value),
+      crate::parse::ast::DUMMY_SPAN,
+    )
   };
 }
 
+use educe::Educe;
 #[cfg(test)]
 pub(crate) use int;
 
 #[cfg(test)]
 macro_rules! sym {
   ($value:expr) => {
-    crate::parse::ast::Expression::Symbol($value)
+    crate::parse::ast::Expression::new(
+      crate::parse::ast::ExpressionKind::Symbol($value),
+      crate::parse::ast::DUMMY_SPAN,
+    )
   };
 }
 
@@ -44,7 +145,10 @@ pub(crate) use sym;
 #[cfg(test)]
 macro_rules! var {
   ($value:expr) => {
-    crate::parse::ast::Expression::Variable($value)
+    crate::parse::ast::Expression::new(
+      crate::parse::ast::ExpressionKind::Variable($value),
+      crate::parse::ast::DUMMY_SPAN,
+    )
   };
 }
 
@@ -88,12 +192,16 @@ pub(crate) use list_internal;
 #[cfg(test)]
 macro_rules! list {
   ($($tt:tt)*) => {{
-    use crate::parse::ast::{Expression, ListEntry, list_internal};
+    use crate::parse::ast::{Expression, ExpressionKind, ListEntry, list_internal, DUMMY_SPAN};
 
     #[allow(unused_mut)]
     let mut v = Vec::<ListEntry>::new();
     list_internal!(v; $($tt)*);
-    Expression::List(v)
+
+    Expression::new(
+      ExpressionKind::List(v),
+      DUMMY_SPAN,
+    )
   }};
 }
 
@@ -120,12 +228,16 @@ pub(crate) use app_internal;
 #[cfg(test)]
 macro_rules! app {
   ($($tt:tt)*) => {{
-    use crate::parse::ast::{Expression, app_internal};
+    use crate::parse::ast::{Expression, ExpressionKind, app_internal, DUMMY_SPAN};
 
     #[allow(unused_mut)]
     let mut v = Vec::<Expression>::new();
     app_internal!(v; $($tt)*);
-    Expression::Application(v)
+
+    Expression::new(
+      ExpressionKind::Application(v),
+      DUMMY_SPAN,
+    )
   }};
 }
 

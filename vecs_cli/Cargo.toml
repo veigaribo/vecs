@@ -5,6 +5,8 @@ edition.workspace = true
 
 [dependencies]
 clap = { version = "4.5.47", features = ["derive"] }
+derive_builder = "0.20.2"
+educe = { version = "0.6.0", default-features = false, features = ["PartialEq"] }
 regex = "1.12.2"
 
 [dev-dependencies]

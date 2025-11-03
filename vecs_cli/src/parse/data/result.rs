@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write};
+use std::{borrow::Cow, fmt::Write as _};
 
 use crate::parse::data::{src::ParseSrc, str::Location};
 
@@ -66,10 +66,10 @@ where
   pub fn map<F, U>(self, f: F) -> ParseSuccess<'str, U>
   where
     U: std::fmt::Debug + Clone,
-    F: FnOnce(T) -> U,
+    F: FnOnce(T, Span<'str>) -> U,
   {
     ParseSuccess {
-      value: f(self.value),
+      value: f(self.value, self.span),
       span: self.span,
       src: self.src,
     }

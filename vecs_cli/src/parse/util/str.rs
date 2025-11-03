@@ -65,6 +65,11 @@ pub fn parse_char<'str>(
     }
 
     src.next();
+  } else {
+    return Err(ParseError::new(
+      start.location,
+      format!("expected \"{}\", but the source ended", target),
+    ));
   }
 
   Ok(ParseSuccess {
@@ -95,8 +100,8 @@ pub fn parse_whitespace<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, ()> 
 #[cfg(test)]
 mod tests {
   use crate::parse::{
-    util::str::{parse_str, parse_whitespace},
     data::src::ParseSrc,
+    util::str::{parse_str, parse_whitespace},
   };
 
   #[test]

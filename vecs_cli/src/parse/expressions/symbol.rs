@@ -1,5 +1,5 @@
 use crate::parse::{
-  ast::Expression,
+  ast::{Expression, ExpressionKind},
   data::{result::ParseResult, src::ParseSrc},
   util::identifiers::parse_identifier,
 };
@@ -7,7 +7,9 @@ use crate::parse::{
 pub fn parse_symbol<'str>(
   src: ParseSrc<'str>,
 ) -> ParseResult<'str, Expression<'str>> {
-  parse_identifier(src).map(|success| success.map(|name| Expression::Symbol(name)))
+  parse_identifier(src).map(|success| {
+    success.map(|name, span| Expression::new(ExpressionKind::Symbol(name), span))
+  })
 }
 
 #[cfg(test)]

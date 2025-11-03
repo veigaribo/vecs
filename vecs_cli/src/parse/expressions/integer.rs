@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::parse::{
-  ast::Expression,
+  ast::{Expression, ExpressionKind},
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
@@ -32,9 +32,10 @@ pub fn parse_integer<'str>(
     accum = accum * 10 + ((digit - b'0') as i128);
   }
 
+  let span = src.span_from(&start);
   Ok(ParseSuccess {
-    value: Expression::Integer(accum),
-    span: src.span_from(&start),
+    value: Expression::new(ExpressionKind::Integer(accum), span),
+    span,
     src,
   })
 }
