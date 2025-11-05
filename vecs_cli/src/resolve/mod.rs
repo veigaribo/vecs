@@ -1,5 +1,6 @@
 pub mod cst;
 pub mod result;
+pub mod state;
 pub mod strukt;
 pub mod system;
 pub mod values;
@@ -9,6 +10,7 @@ use crate::{
   resolve::{
     cst::Cst,
     result::{ResolveError, ResolveResult},
+    state::resolve_state,
     strukt::resolve_struct,
     system::resolve_system,
     values::{ValueKind, VarTable},
@@ -20,8 +22,8 @@ use crate::{
 #[derive(Debug, Copy, Clone)]
 pub struct ResolveMeta<'a, 'b, 'c> {
   pub ast: &'b Ast<'a>,
+  pub cst: &'c Cst<'a>,
   pub span: Span<'a>,
-  pub state: &'c Cst<'a>,
 }
 
 pub fn resolve<'a>(ast: Ast<'a>) -> ResolveResult<'a, Cst<'a>> {
@@ -36,7 +38,7 @@ pub fn resolve<'a>(ast: Ast<'a>) -> ResolveResult<'a, Cst<'a>> {
     let info = ResolveMeta {
       span,
       ast: &ast,
-      state: &cst,
+      cst: &cst,
     };
 
     let application = table.resolve(expr)?;
@@ -59,13 +61,24 @@ pub fn resolve<'a>(ast: Ast<'a>) -> ResolveResult<'a, Cst<'a>> {
       } else if car.kind == ValueKind::Symbol("system") {
         let system = resolve_system(info, cdr)?;
         cst.add_system(system);
+      } else if car.kind == ValueKind::Symbol("state") {
+        let state = resolve_state(info, cdr)?;
+        cst.add_state(state);
+      } else if let ValueKind::Symbol(_) = car.kind {
+        return Err(ResolveError::new(car.span, format!("unknown tag {}", car)));
       } else {
-        return Err(ResolveError::new(car.span, "operation not found"));
+        return Err(ResolveError::new(
+          car.span,
+          format!(
+            "expected a tag: `component`, `event` or `system`. instead found {}",
+            car,
+          ),
+        ));
       }
     } else {
       panic!(
         "malformed ast: root expression is not a list. this is a bug.\n{}",
-        ast
+        ast,
       );
     }
   }

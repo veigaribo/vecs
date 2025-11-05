@@ -10,27 +10,27 @@ pub fn resolve_system<'a>(
   cdr: &[Value<'a>],
 ) -> ResolveResult<'a, System<'a>> {
   let mut s = SystemBuilder::default();
-  let arg1 = cdr.get(0);
+  let maybe_value = cdr.get(0);
 
-  if let Some(name) = arg1 {
-    if let ValueKind::Symbol(name) = name.kind {
+  if let Some(value) = maybe_value {
+    if let ValueKind::Symbol(name) = value.kind {
       s.name(name);
     } else {
       return Err(ResolveError::new(
-        name.span,
-        format!("system name must be a symbol. instead found {}", name),
+        value.span,
+        format!("system name must be a symbol. instead found {}", value),
       ));
     }
 
-    let arg2 = cdr.get(1);
+    let maybe_value = cdr.get(1);
 
-    if let Some(body) = arg2 {
-      if let ValueKind::List(ref values) = body.kind {
+    if let Some(value) = maybe_value {
+      if let ValueKind::List(ref values) = value.kind {
         for value in values {
-          if let ValueKind::List(ref app) = value.kind {
-            if app.len() != 1 {
+          if let ValueKind::List(ref values) = value.kind {
+            if values.len() != 1 {
               return Err(ResolveError::new(
-                body.span,
+                value.span,
                 format!(
                   "system param should be a single component name symbol. instead it's {}",
                   value,
@@ -38,15 +38,15 @@ pub fn resolve_system<'a>(
               ));
             }
 
-            let head = &app[0];
+            let value = &values[0];
 
-            if let ValueKind::Symbol(param) = head.kind {
-              if meta.state.components.contains_key(param) {
+            if let ValueKind::Symbol(param) = value.kind {
+              if meta.cst.components.contains_key(param) {
                 s.add_param(param);
               } else {
                 return Err(ResolveError::new(
                   value.span,
-                  format!("component named {} not found.", param),
+                  format!("component `{}` not found.", param),
                 ));
               }
             } else {
@@ -64,17 +64,21 @@ pub fn resolve_system<'a>(
         }
       } else {
         return Err(ResolveError::new(
-          body.span,
-          format!(
-            "body of system {} should be a list. instead it's {}",
-            name, body
-          ),
+          value.span,
+          format!("body of system should be a list. instead it's {}", value),
+        ));
+      }
+
+      if let Some(extra) = cdr.get(2) {
+        return Err(ResolveError::new(
+          meta.span,
+          format!("unexpected value {}", extra),
         ));
       }
     } else {
       return Err(ResolveError::new(
         meta.span,
-        format!("system {} is missing its body", name),
+        format!("system {} is missing its body", value),
       ));
     }
   } else {

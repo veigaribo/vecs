@@ -19,31 +19,33 @@ pub fn generate<'str, W: io::Write>(data: Cst<'str>, w: &mut W) -> io::Result<()
   for component in data.components.values() {
     write!(w, "struct ")?;
     gen_component_struct_name(&component, w)?;
-    write!(w, " {{")?;
+    write!(w, " {{\n")?;
 
     for field in component.fields.iter() {
       for typ_segment in field.typ.iter() {
-        write!(w, "{} ", typ_segment)?;
+        write!(w, "  {} ", typ_segment)?;
       }
 
-      write!(w, "{};", field.name)?;
+      write!(w, "{};\n", field.name)?;
     }
-    write!(w, "}};")?;
+    write!(w, "}};\n\n")?;
   }
 
+  write!(w, "\n")?;
+
   // Component union.
-  write!(w, "union v_component {{")?;
+  write!(w, "union v_component {{\n")?;
   for component in data.components.values() {
-    write!(w, "struct ")?;
+    write!(w, "  struct ")?;
     gen_component_struct_name(&component, w)?;
-    write!(w, " {};", component.name)?;
+    write!(w, " {};\n", component.name)?;
   }
-  write!(w, "}};")?;
+  write!(w, "}};\n")?;
 
   // TODO: Hook up systems.
   write!(w, "\n")?;
-  for system in data.systems.iter() {
-    write!(w, "// {}(", system.name)?;
+  for system in data.systems.values() {
+    write!(w, "// system {}(", system.name)?;
 
     for param in system.params.iter() {
       write!(w, "{},", param)?;
@@ -52,84 +54,36 @@ pub fn generate<'str, W: io::Write>(data: Cst<'str>, w: &mut W) -> io::Result<()
     write!(w, ")\n")?;
   }
 
+  // TODO: Define states.
+  write!(w, "\n")?;
+  for state in data.states.iter() {
+    write!(w, "// state {} ", state.name)?;
+    write!(w, "components = (")?;
+
+    for component in state.components.iter() {
+      write!(w, "{}", component.name)?;
+
+      if let Some(max) = component.max {
+        write!(w, " max {}", max)?;
+      }
+
+      write!(w, ",")?;
+    }
+    
+    write!(w, ") systems = (")?;
+
+    for (i, systems) in state.systems.iter().enumerate() {
+      write!(w, "{} => (", i)?;
+
+      for system in systems {
+        write!(w, "{},", system)?;
+      }
+
+      write!(w, "),")?;
+    }
+
+    write!(w, ")\n")?;
+  }
+
   Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-  // use crate::{
-  //   generate::generate,
-  //   parse::{
-  //     ast::{Ast, Component, Event, System},
-  //     expressions::common::{table, Expression},
-  //     struct_def_like::{Struct, StructField},
-  //   },
-  // };
-
-  // #[test]
-  // fn test_generate() {
-  //   let data = Ast {
-  //     components: vec![
-  //       Component::new(
-  //         "transform",
-  //         Struct::new(
-  //           "transform",
-  //           vec![
-  //             StructField::new("double", "x"),
-  //             StructField::new("double", "y"),
-  //           ],
-  //         ),
-  //       ),
-  //       Component::new(
-  //         "render",
-  //         Struct::new("render", vec![StructField::new("texture_t", "texture")]),
-  //       ),
-  //     ],
-
-  //     events: vec![Event::new(
-  //       "mouse_click",
-  //       Struct::new(
-  //         "mouse_click",
-  //         vec![
-  //           StructField::new("double", "x"),
-  //           StructField::new("double", "y"),
-  //           StructField::new("uint8_t", "button"),
-  //         ],
-  //       ),
-  //     )],
-
-  //     systems: vec![
-  //       System::new("move", Expression::Table(table!(sym "transform",))),
-  //       System::new(
-  //         "render",
-  //         Expression::Table(table!(sym "transform", sym "render",)),
-  //       ),
-  //     ],
-  //   };
-
-  //   let mut generated = Vec::<u8>::new();
-  //   generate(data, &mut generated).expect("generate error");
-
-  //   let generated_string = unsafe { String::from_utf8_unchecked(generated) };
-  //   let expected_string = format!(
-  //     "{}\n{}",
-  //     include_str!("prelude.c"),
-  //     "\
-  //     struct v_component_transform {\
-  //       double x;\
-  //       double y;\
-  //     };\
-  //     \
-  //     struct v_component_render {\
-  //       texture_t texture;\
-  //     };\
-  //     \
-  //     union v_component {\
-  //       struct v_component_transform transform;\
-  //       struct v_component_render render;\
-  //     };"
-  //   );
-
-  //   assert_eq!(&generated_string, &expected_string);
-  // }
 }

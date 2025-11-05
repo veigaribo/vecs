@@ -1,9 +1,11 @@
-// "Concrete semantic tree".
-// Maybe you wouldn't consider this a tree but I think `css` would be too confusing.
-
 use std::collections::HashMap;
 
 use derive_builder::Builder;
+
+// CST means "concrete semantic tree".
+// Maybe you wouldn't consider this a tree but I think `css` would be too confusing.
+
+// Structs (components and events).
 
 #[derive(Debug, Clone, Builder)]
 pub struct StructField<'a> {
@@ -28,6 +30,8 @@ impl<'a> StructBuilder<'a> {
   }
 }
 
+// Systems.
+
 #[derive(Debug, Clone, Builder)]
 pub struct System<'a> {
   pub name: &'a str,
@@ -44,11 +48,34 @@ impl<'a> SystemBuilder<'a> {
   }
 }
 
+// States.
+
+#[derive(Debug, Clone, Builder)]
+pub struct StateComponent<'a> {
+  pub name: &'a str,
+  pub max: Option<u64>,
+}
+
+#[derive(Debug, Clone, Builder)]
+pub struct State<'a> {
+  pub name: &'a str,
+
+  #[builder(field(vis = "pub"))]
+  pub components: Vec<StateComponent<'a>>,
+
+  #[builder(field(vis = "pub"))]
+  pub systems: Vec<Vec<&'a str>>,
+}
+
+// CST. See the top comment for what it means.
+
 #[derive(Debug, Clone, Default)]
 pub struct Cst<'a> {
   pub components: HashMap<&'a str, Struct<'a>>,
   pub events: HashMap<&'a str, Struct<'a>>,
-  pub systems: Vec<System<'a>>,
+  pub systems: HashMap<&'a str, System<'a>>,
+
+  pub states: Vec<State<'a>>,
 }
 
 impl<'a> Cst<'a> {
@@ -61,6 +88,10 @@ impl<'a> Cst<'a> {
   }
 
   pub fn add_system(&mut self, system: System<'a>) {
-    self.systems.push(system);
+    self.systems.insert(system.name, system);
+  }
+
+  pub fn add_state(&mut self, state: State<'a>) {
+    self.states.push(state);
   }
 }

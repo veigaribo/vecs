@@ -1,5 +1,6 @@
 #![allow(irrefutable_let_patterns)]
 #![feature(assert_matches)]
+#![feature(iter_intersperse)]
 
 mod cli;
 mod generate;
