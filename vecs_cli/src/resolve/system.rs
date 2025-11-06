@@ -27,7 +27,7 @@ pub fn resolve_system<'src>(
     if let Some(value) = maybe_value {
       if let ValueKind::List(ref values) = value.kind {
         for value in values {
-          if let ValueKind::List(ref values) = value.kind {
+          if let ValueKind::Application(ref values) = value.kind {
             if values.len() != 1 {
               return Err(ResolveError::new(
                 value.span,
@@ -57,8 +57,8 @@ pub fn resolve_system<'src>(
             }
           } else {
             panic!(
-              "malformed ast: root expression is not a list. this is a bug.\n{}",
-              meta.ast
+              "malformed ast: root expression is not an application. this is a bug.\n{}",
+              meta.ast,
             );
           }
         }

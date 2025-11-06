@@ -29,7 +29,7 @@ pub fn resolve_state<'src>(
     if let Some(value) = maybe_value {
       if let ValueKind::List(ref values) = value.kind {
         for value in values {
-          if let ValueKind::List(ref values) = value.kind {
+          if let ValueKind::Application(ref values) = value.kind {
             let car = &values[0];
             let cdr = &values[1..];
 
@@ -61,7 +61,7 @@ pub fn resolve_state<'src>(
             }
           } else {
             panic!(
-              "malformed ast: root expression is not a list. this is a bug.\n{}",
+              "malformed ast: root expression is not an application. this is a bug.\n{}",
               meta.ast,
             );
           }
@@ -111,7 +111,7 @@ fn resolve_state_components<'src>(
       for value in values {
         let mut s = StateComponentBuilder::default();
 
-        if let ValueKind::List(ref values) = value.kind {
+        if let ValueKind::Application(ref values) = value.kind {
           let maybe_value = values.get(0);
 
           if let Some(value) = maybe_value {
@@ -193,8 +193,8 @@ fn resolve_state_components<'src>(
           }
         } else {
           panic!(
-            "malformed ast: root expression is not a list. this is a bug.\n{}",
-            meta.ast
+            "malformed ast: root expression is not an application. this is a bug.\n{}",
+            meta.ast,
           );
         }
 
@@ -237,7 +237,7 @@ fn resolve_state_systems<'src>(
         let len = ss.len();
         let s = &mut ss[len - 1];
 
-        if let ValueKind::List(ref values) = value.kind {
+        if let ValueKind::Application(ref values) = value.kind {
           if values.len() != 1 {
             return Err(ResolveError::new(
               value.span,
@@ -249,7 +249,7 @@ fn resolve_state_systems<'src>(
 
           if let ValueKind::List(ref values) = value.kind {
             for value in values {
-              if let ValueKind::List(ref values) = value.kind {
+              if let ValueKind::Application(ref values) = value.kind {
                 if values.len() != 1 {
                   return Err(ResolveError::new(
                     value.span,
@@ -279,8 +279,8 @@ fn resolve_state_systems<'src>(
                 }
               } else {
                 panic!(
-                  "malformed ast: root expression is not a list. this is a bug.\n{}",
-                  meta.ast
+                  "malformed ast: root expression is not an application. this is a bug.\n{}",
+                  meta.ast,
                 );
               }
             }
@@ -292,8 +292,8 @@ fn resolve_state_systems<'src>(
           }
         } else {
           panic!(
-            "malformed ast: root expression is not a list. this is a bug.\n{}",
-            meta.ast
+            "malformed ast: root expression is not an application. this is a bug.\n{}",
+            meta.ast,
           );
         }
       }
@@ -326,7 +326,7 @@ fn resolve_options<'src, 'b>(
   if let Some(arg1) = arg1 {
     if let ValueKind::List(ref inner) = arg1.kind {
       for app in inner {
-        if let ValueKind::List(ref inner) = app.kind {
+        if let ValueKind::Application(ref inner) = app.kind {
           let arg1 = inner.get(0);
 
           let name: &'src str;
@@ -359,8 +359,8 @@ fn resolve_options<'src, 'b>(
           }
         } else {
           panic!(
-            "malformed ast: root expression is not a list. this is a bug.\n{}",
-            meta.ast
+            "malformed ast: root expression is not an application. this is a bug.\n{}",
+            meta.ast,
           );
         }
       }

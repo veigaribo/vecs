@@ -29,7 +29,7 @@ pub fn resolve_struct<'src>(
         let mut field = StructFieldBuilder::default();
 
         for value in values {
-          if let ValueKind::List(ref values) = value.kind {
+          if let ValueKind::Application(ref values) = value.kind {
             // Will contain both type and name.
             let mut name_segments = Vec::<&'src str>::new();
 
@@ -66,8 +66,8 @@ pub fn resolve_struct<'src>(
             )));
           } else {
             panic!(
-              "malformed ast: root expression is not a list. this is a bug.\n{}",
-              meta.ast
+              "malformed ast: root expression is not an application. this is a bug.\n{}",
+              meta.ast,
             );
           }
         }

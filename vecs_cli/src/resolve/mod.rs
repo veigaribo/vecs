@@ -43,7 +43,7 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
 
     let application = table.resolve(expr)?;
 
-    if let ValueKind::List(els) = application.kind {
+    if let ValueKind::Application(els) = application.kind {
       if els.is_empty() {
         // TODO: Can this happen?
         continue;
@@ -77,7 +77,7 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
       }
     } else {
       panic!(
-        "malformed ast: root expression is not a list. this is a bug.\n{}",
+        "malformed ast: root expression is not an application. this is a bug.\n{}",
         ast,
       );
     }

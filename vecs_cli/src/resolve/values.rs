@@ -15,6 +15,7 @@ pub enum ValueKind<'src> {
   Integer(i128),
   Symbol(&'src str),
   List(Vec<Value<'src>>),
+  Application(Vec<Value<'src>>),
 }
 
 #[derive(Debug, Clone, Eq, Educe)]
@@ -51,6 +52,22 @@ impl<'src> Display for Value<'src> {
           }
 
           write!(f, " }}")
+        }
+      }
+      ValueKind::Application(ref values) => {
+        if values.is_empty() {
+          write!(f, "()")
+        } else {
+          write!(f, "( ")?;
+
+          let head = &values[0];
+          head.fmt(f)?;
+
+          for value in &values[1..] {
+            write!(f, ", {}", value)?;
+          }
+
+          write!(f, " )")
         }
       }
     }
@@ -98,7 +115,7 @@ impl<'src> VarTable<'src> {
           resolved.push(value);
         }
 
-        Ok(Value::new(ValueKind::List(resolved), span))
+        Ok(Value::new(ValueKind::Application(resolved), span))
       }
       ExpressionKind::List(items) => {
         let mut resolved = Vec::<Value>::with_capacity(items.len());
