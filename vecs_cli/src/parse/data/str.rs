@@ -1,13 +1,13 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Location<'str> {
-  pub file: Option<&'str str>,
+pub struct Location<'src> {
+  pub file: Option<&'src str>,
   pub byte_offset: usize,
   pub line: usize,
   pub column: usize,
 }
 
-impl<'str> Location<'str> {
-  pub const fn new(file: Option<&'str str>) -> Self {
+impl<'src> Location<'src> {
+  pub const fn new(file: Option<&'src str>) -> Self {
     Self {
       file,
       byte_offset: 0,
@@ -32,7 +32,7 @@ impl<'str> Location<'str> {
   }
 }
 
-impl<'str> std::fmt::Display for Location<'str> {
+impl<'src> std::fmt::Display for Location<'src> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     if let Some(file) = self.file {
       f.write_str(file)?;
@@ -43,8 +43,8 @@ impl<'str> std::fmt::Display for Location<'str> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Span<'str> {
-  pub file: Option<&'str str>,
+pub struct Span<'src> {
+  pub file: Option<&'src str>,
   pub start_byte_offset: usize,
   pub start_line: usize,
   pub start_column: usize,
@@ -53,8 +53,8 @@ pub struct Span<'str> {
   pub end_column: usize,
 }
 
-impl<'str> Span<'str> {
-  pub const fn new(start: Location<'str>, end: Location<'str>) -> Self {
+impl<'src> Span<'src> {
+  pub const fn new(start: Location<'src>, end: Location<'src>) -> Self {
     Self {
       file: start.file,
       start_byte_offset: start.byte_offset,
@@ -66,7 +66,7 @@ impl<'str> Span<'str> {
     }
   }
 
-  pub fn slice(&self, text: &'str str) -> &'str str {
+  pub fn slice(&self, text: &'src str) -> &'src str {
     &text[self.start_byte_offset..self.end_byte_offset]
   }
 
@@ -76,7 +76,7 @@ impl<'str> Span<'str> {
   }
 }
 
-impl<'str> std::fmt::Display for Span<'str> {
+impl<'src> std::fmt::Display for Span<'src> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     if let Some(file) = self.file {
       f.write_str(file)?;

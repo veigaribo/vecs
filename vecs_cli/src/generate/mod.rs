@@ -2,15 +2,15 @@ use std::io;
 
 use crate::resolve::cst::{Cst, Struct};
 
-pub fn gen_component_struct_name<'str, W: io::Write>(
-  component: &Struct<'str>,
+pub fn gen_component_struct_name<'src, W: io::Write>(
+  component: &Struct<'src>,
   w: &mut W,
 ) -> io::Result<()> {
   write!(w, "v_component_{}", component.name)?;
   Ok(())
 }
 
-pub fn generate<'str, W: io::Write>(data: Cst<'str>, w: &mut W) -> io::Result<()> {
+pub fn generate<'src, W: io::Write>(data: Cst<'src>, w: &mut W) -> io::Result<()> {
   let prelude = include_str!("prelude.c");
 
   write!(w, "{}\n", prelude)?;
@@ -69,7 +69,7 @@ pub fn generate<'str, W: io::Write>(data: Cst<'str>, w: &mut W) -> io::Result<()
 
       write!(w, ",")?;
     }
-    
+
     write!(w, ") systems = (")?;
 
     for (i, systems) in state.systems.iter().enumerate() {

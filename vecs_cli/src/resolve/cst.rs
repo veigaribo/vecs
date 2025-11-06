@@ -8,20 +8,20 @@ use derive_builder::Builder;
 // Structs (components and events).
 
 #[derive(Debug, Clone, Builder)]
-pub struct StructField<'a> {
+pub struct StructField<'src> {
   // Vec of identifier components (like vec![unsigned, long, long, int]).
-  pub typ: Vec<&'a str>,
-  pub name: &'a str,
+  pub typ: Vec<&'src str>,
+  pub name: &'src str,
 }
 
 #[derive(Debug, Clone, Builder)]
-pub struct Struct<'a> {
-  pub name: &'a str,
-  pub fields: Vec<StructField<'a>>,
+pub struct Struct<'src> {
+  pub name: &'src str,
+  pub fields: Vec<StructField<'src>>,
 }
 
-impl<'a> StructBuilder<'a> {
-  pub fn add_field(&mut self, field: StructField<'a>) {
+impl<'src> StructBuilder<'src> {
+  pub fn add_field(&mut self, field: StructField<'src>) {
     if let Some(ref mut fields) = self.fields {
       fields.push(field);
     } else {
@@ -33,13 +33,13 @@ impl<'a> StructBuilder<'a> {
 // Systems.
 
 #[derive(Debug, Clone, Builder)]
-pub struct System<'a> {
-  pub name: &'a str,
-  pub params: Vec<&'a str>,
+pub struct System<'src> {
+  pub name: &'src str,
+  pub params: Vec<&'src str>,
 }
 
-impl<'a> SystemBuilder<'a> {
-  pub fn add_param(&mut self, param: &'a str) {
+impl<'src> SystemBuilder<'src> {
+  pub fn add_param(&mut self, param: &'src str) {
     if let Some(ref mut params) = self.params {
       params.push(param);
     } else {
@@ -51,47 +51,47 @@ impl<'a> SystemBuilder<'a> {
 // States.
 
 #[derive(Debug, Clone, Builder)]
-pub struct StateComponent<'a> {
-  pub name: &'a str,
+pub struct StateComponent<'src> {
+  pub name: &'src str,
   pub max: Option<u64>,
 }
 
 #[derive(Debug, Clone, Builder)]
-pub struct State<'a> {
-  pub name: &'a str,
+pub struct State<'src> {
+  pub name: &'src str,
 
   #[builder(field(vis = "pub"))]
-  pub components: Vec<StateComponent<'a>>,
+  pub components: Vec<StateComponent<'src>>,
 
   #[builder(field(vis = "pub"))]
-  pub systems: Vec<Vec<&'a str>>,
+  pub systems: Vec<Vec<&'src str>>,
 }
 
 // CST. See the top comment for what it means.
 
 #[derive(Debug, Clone, Default)]
-pub struct Cst<'a> {
-  pub components: HashMap<&'a str, Struct<'a>>,
-  pub events: HashMap<&'a str, Struct<'a>>,
-  pub systems: HashMap<&'a str, System<'a>>,
+pub struct Cst<'src> {
+  pub components: HashMap<&'src str, Struct<'src>>,
+  pub events: HashMap<&'src str, Struct<'src>>,
+  pub systems: HashMap<&'src str, System<'src>>,
 
-  pub states: Vec<State<'a>>,
+  pub states: Vec<State<'src>>,
 }
 
-impl<'a> Cst<'a> {
-  pub fn add_component(&mut self, component: Struct<'a>) {
+impl<'src> Cst<'src> {
+  pub fn add_component(&mut self, component: Struct<'src>) {
     self.components.insert(component.name, component);
   }
 
-  pub fn add_event(&mut self, event: Struct<'a>) {
+  pub fn add_event(&mut self, event: Struct<'src>) {
     self.events.insert(event.name, event);
   }
 
-  pub fn add_system(&mut self, system: System<'a>) {
+  pub fn add_system(&mut self, system: System<'src>) {
     self.systems.insert(system.name, system);
   }
 
-  pub fn add_state(&mut self, state: State<'a>) {
+  pub fn add_state(&mut self, state: State<'src>) {
     self.states.push(state);
   }
 }

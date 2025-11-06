@@ -1,14 +1,14 @@
 use crate::parse::{
-  util::str::parse_str,
   data::{
     result::{ParseResult, ParseSuccess},
     src::ParseSrc,
   },
+  util::str::parse_str,
 };
 
-pub fn parse_inline_comment<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, &'str str> {
+pub fn parse_inline_comment<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, &'src str> {
   let start = src.clone();
 
   src = parse_str("//", src)?.src;
@@ -30,9 +30,9 @@ pub fn parse_inline_comment<'str>(
   })
 }
 
-pub fn parse_multiline_comment<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, &'str str> {
+pub fn parse_multiline_comment<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, &'src str> {
   let start = src.clone();
 
   src = parse_str("/*", src)?.src;
@@ -58,7 +58,7 @@ pub fn parse_multiline_comment<'str>(
   })
 }
 
-pub fn parse_comment<'str>(src: ParseSrc<'str>) -> ParseResult<'str, &'str str> {
+pub fn parse_comment<'src>(src: ParseSrc<'src>) -> ParseResult<'src, &'src str> {
   parse_inline_comment(src.clone()).or_else(|_| parse_multiline_comment(src))
 }
 

@@ -5,10 +5,10 @@ use crate::resolve::{
   ResolveMeta,
 };
 
-pub fn resolve_struct<'a>(
-  meta: ResolveMeta<'a, '_, '_>,
-  cdr: &[Value<'a>],
-) -> ResolveResult<'a, Struct<'a>> {
+pub fn resolve_struct<'src>(
+  meta: ResolveMeta<'src, '_, '_>,
+  cdr: &[Value<'src>],
+) -> ResolveResult<'src, Struct<'src>> {
   let mut s = StructBuilder::default();
   let maybe_value = cdr.get(0);
 
@@ -31,7 +31,7 @@ pub fn resolve_struct<'a>(
         for value in values {
           if let ValueKind::List(ref values) = value.kind {
             // Will contain both type and name.
-            let mut name_segments = Vec::<&'a str>::new();
+            let mut name_segments = Vec::<&'src str>::new();
 
             for value in values {
               if let ValueKind::Symbol(segment) = value.kind {

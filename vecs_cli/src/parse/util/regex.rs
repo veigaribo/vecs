@@ -5,10 +5,10 @@ use crate::parse::data::{
   src::ParseSrc,
 };
 
-pub fn parse_regex<'str>(
-  mut src: ParseSrc<'str>,
+pub fn parse_regex<'src>(
+  mut src: ParseSrc<'src>,
   regex: &Regex,
-) -> ParseResult<'str, Match<'str>> {
+) -> ParseResult<'src, Match<'src>> {
   debug_assert!(
     regex.as_str().starts_with('^'),
     "regex must match on the start of the string (^) only: `{}`",
@@ -47,7 +47,7 @@ pub fn parse_regex<'str>(
 mod tests {
   use regex::Regex;
 
-  use crate::parse::{util::regex::parse_regex, data::src::ParseSrc};
+  use crate::parse::{data::src::ParseSrc, util::regex::parse_regex};
 
   #[test]
   fn test_parse_regex() {

@@ -3,9 +3,9 @@ use crate::parse::data::{
   src::ParseSrc,
 };
 
-pub fn parse_identifier<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, &'str str> {
+pub fn parse_identifier<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, &'src str> {
   let start = src.clone();
   let first = src.next();
 

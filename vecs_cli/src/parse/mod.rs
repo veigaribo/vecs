@@ -49,7 +49,7 @@ pub fn strip_comments(t: &mut str) {
   }
 }
 
-pub fn parse<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, Ast<'str>> {
+pub fn parse<'src>(mut src: ParseSrc<'src>) -> ParseResult<'src, Ast<'src>> {
   let start = src.clone();
   let mut parsed = Vec::<Expression>::new();
 

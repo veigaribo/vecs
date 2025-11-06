@@ -6,15 +6,15 @@ use super::str::Location;
 
 /// An iterator. Input to parse functions.
 #[derive(Debug, Clone)]
-pub struct ParseSrc<'str> {
-  pub src: &'str str,
-  pub location: Location<'str>,
-  pub chars: Chars<'str>,
+pub struct ParseSrc<'src> {
+  pub src: &'src str,
+  pub location: Location<'src>,
+  pub chars: Chars<'src>,
 }
 
 // Handles CRLF by effectively converting to LF.
-impl<'str> ParseSrc<'str> {
-  pub fn new(file: Option<&'str str>, text: &'str str) -> Self {
+impl<'src> ParseSrc<'src> {
+  pub fn new(file: Option<&'src str>, text: &'src str) -> Self {
     Self {
       src: text,
       location: Location::new(file),
@@ -26,17 +26,17 @@ impl<'str> ParseSrc<'str> {
     self.location.byte_offset == self.src.len()
   }
 
-  pub fn span_from(&self, start: &ParseSrc<'str>) -> Span<'str> {
+  pub fn span_from(&self, start: &ParseSrc<'src>) -> Span<'src> {
     Span::new(start.location, self.location)
   }
 
   // If you're wondering whether you should call this on ParseSrc A or ParseSrc B,
   // chances are it doesn't matter.
-  pub fn slice(&self, span: Span<'str>) -> &'str str {
+  pub fn slice(&self, span: Span<'src>) -> &'src str {
     span.slice(self.src)
   }
 
-  pub fn zip(self, b: ParseSrc<'str>) -> ParseSrcZip<'str> {
+  pub fn zip(self, b: ParseSrc<'src>) -> ParseSrcZip<'src> {
     ParseSrcZip::new(self, b)
   }
 
@@ -84,7 +84,7 @@ impl<'str> ParseSrc<'str> {
   }
 }
 
-impl<'str> Iterator for ParseSrc<'str> {
+impl<'src> Iterator for ParseSrc<'src> {
   type Item = char;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -118,8 +118,8 @@ impl<'str> Iterator for ParseSrc<'str> {
   }
 }
 
-impl<'str> From<&'str str> for ParseSrc<'str> {
-  fn from(value: &'str str) -> Self {
+impl<'src> From<&'src str> for ParseSrc<'src> {
+  fn from(value: &'src str) -> Self {
     ParseSrc::new(None, value)
   }
 }
@@ -127,22 +127,22 @@ impl<'str> From<&'str str> for ParseSrc<'str> {
 /// Like std Zip but this one allows obtaining the iterators back. An equal amount of
 /// items from both sources will be consumed always.
 #[derive(Debug, Clone)]
-pub struct ParseSrcZip<'str> {
-  pub a: ParseSrc<'str>,
-  pub b: ParseSrc<'str>,
+pub struct ParseSrcZip<'src> {
+  pub a: ParseSrc<'src>,
+  pub b: ParseSrc<'src>,
 }
 
-impl<'str> ParseSrcZip<'str> {
-  pub fn new(a: ParseSrc<'str>, b: ParseSrc<'str>) -> Self {
+impl<'src> ParseSrcZip<'src> {
+  pub fn new(a: ParseSrc<'src>, b: ParseSrc<'src>) -> Self {
     Self { a, b }
   }
 
-  pub fn get(self) -> (ParseSrc<'str>, ParseSrc<'str>) {
+  pub fn get(self) -> (ParseSrc<'src>, ParseSrc<'src>) {
     (self.a, self.b)
   }
 }
 
-impl<'str> Iterator for ParseSrcZip<'str> {
+impl<'src> Iterator for ParseSrcZip<'src> {
   type Item = (char, char);
 
   fn next(&mut self) -> Option<Self::Item> {

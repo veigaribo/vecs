@@ -4,9 +4,9 @@ use crate::parse::{
   util::identifiers::parse_identifier,
 };
 
-pub fn parse_symbol<'str>(
-  src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+pub fn parse_symbol<'src>(
+  src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   parse_identifier(src).map(|success| {
     success.map(|name, span| Expression::new(ExpressionKind::Symbol(name), span))
   })

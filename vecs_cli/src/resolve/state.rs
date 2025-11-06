@@ -7,10 +7,10 @@ use crate::resolve::{
   ResolveMeta,
 };
 
-pub fn resolve_state<'a>(
-  meta: ResolveMeta<'a, '_, '_>,
-  cdr: &[Value<'a>],
-) -> ResolveResult<'a, State<'a>> {
+pub fn resolve_state<'src>(
+  meta: ResolveMeta<'src, '_, '_>,
+  cdr: &[Value<'src>],
+) -> ResolveResult<'src, State<'src>> {
   let mut s = StateBuilder::default();
   let maybe_value = cdr.get(0);
 
@@ -99,11 +99,11 @@ pub fn resolve_state<'a>(
   )))
 }
 
-fn resolve_state_components<'a>(
-  meta: ResolveMeta<'a, '_, '_>,
-  cdr: &[Value<'a>],
-) -> ResolveResult<'a, Vec<StateComponent<'a>>> {
-  let mut ss = Vec::<StateComponent<'a>>::new();
+fn resolve_state_components<'src>(
+  meta: ResolveMeta<'src, '_, '_>,
+  cdr: &[Value<'src>],
+) -> ResolveResult<'src, Vec<StateComponent<'src>>> {
+  let mut ss = Vec::<StateComponent<'src>>::new();
   let maybe_value = cdr.get(0);
 
   if let Some(value) = maybe_value {
@@ -222,11 +222,11 @@ fn resolve_state_components<'a>(
   Ok(ss)
 }
 
-fn resolve_state_systems<'a>(
-  meta: ResolveMeta<'a, '_, '_>,
-  cdr: &[Value<'a>],
-) -> ResolveResult<'a, Vec<Vec<&'a str>>> {
-  let mut ss = Vec::<Vec<&'a str>>::new();
+fn resolve_state_systems<'src>(
+  meta: ResolveMeta<'src, '_, '_>,
+  cdr: &[Value<'src>],
+) -> ResolveResult<'src, Vec<Vec<&'src str>>> {
+  let mut ss = Vec::<Vec<&'src str>>::new();
   let maybe_value = cdr.get(0);
 
   if let Some(value) = maybe_value {
@@ -316,10 +316,10 @@ fn resolve_state_systems<'a>(
   Ok(ss)
 }
 
-fn resolve_options<'a, 'b>(
-  meta: ResolveMeta<'a, '_, '_>,
-  args: &'b [Value<'a>],
-) -> ResolveResult<'a, HashMap<&'a str, &'b Value<'a>>> {
+fn resolve_options<'src, 'b>(
+  meta: ResolveMeta<'src, '_, '_>,
+  args: &'b [Value<'src>],
+) -> ResolveResult<'src, HashMap<&'src str, &'b Value<'src>>> {
   let mut opts = HashMap::new();
   let arg1 = args.get(0);
 
@@ -329,7 +329,7 @@ fn resolve_options<'a, 'b>(
         if let ValueKind::List(ref inner) = app.kind {
           let arg1 = inner.get(0);
 
-          let name: &'a str;
+          let name: &'src str;
 
           if let Some(arg1) = arg1 {
             if let ValueKind::Symbol(content) = arg1.kind {

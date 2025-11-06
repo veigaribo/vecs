@@ -5,12 +5,12 @@ use crate::parse::data::{src::ParseSrc, str::Location};
 use super::str::Span;
 
 #[derive(Debug, Clone)]
-pub struct ParseError<'str> {
-  location: Location<'str>,
+pub struct ParseError<'src> {
+  location: Location<'src>,
   message: Cow<'static, str>,
 }
 
-impl<'str> std::fmt::Display for ParseError<'str> {
+impl<'src> std::fmt::Display for ParseError<'src> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.location.fmt(f)?;
     f.write_char(':')?;
@@ -19,8 +19,8 @@ impl<'str> std::fmt::Display for ParseError<'str> {
   }
 }
 
-impl<'str> ParseError<'str> {
-  pub fn new<T>(location: Location<'str>, message: T) -> Self
+impl<'src> ParseError<'src> {
+  pub fn new<T>(location: Location<'src>, message: T) -> Self
   where
     T: Into<Cow<'static, str>>,
   {
@@ -30,7 +30,7 @@ impl<'str> ParseError<'str> {
     }
   }
 
-  pub fn wrap_message<T>(self, msg: T) -> ParseError<'str>
+  pub fn wrap_message<T>(self, msg: T) -> ParseError<'src>
   where
     T: Into<Cow<'static, str>>,
   {
@@ -38,7 +38,7 @@ impl<'str> ParseError<'str> {
     self.sub_message(Cow::Owned(wrapped_msg))
   }
 
-  pub fn sub_message<T>(self, msg: T) -> ParseError<'str>
+  pub fn sub_message<T>(self, msg: T) -> ParseError<'src>
   where
     T: Into<Cow<'static, str>>,
   {
@@ -50,23 +50,23 @@ impl<'str> ParseError<'str> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ParseSuccess<'str, T>
+pub struct ParseSuccess<'src, T>
 where
   T: std::fmt::Debug + Clone,
 {
   pub value: T,
-  pub span: Span<'str>,
-  pub src: ParseSrc<'str>,
+  pub span: Span<'src>,
+  pub src: ParseSrc<'src>,
 }
 
-impl<'str, T> ParseSuccess<'str, T>
+impl<'src, T> ParseSuccess<'src, T>
 where
   T: std::fmt::Debug + Clone,
 {
-  pub fn map<F, U>(self, f: F) -> ParseSuccess<'str, U>
+  pub fn map<F, U>(self, f: F) -> ParseSuccess<'src, U>
   where
     U: std::fmt::Debug + Clone,
-    F: FnOnce(T, Span<'str>) -> U,
+    F: FnOnce(T, Span<'src>) -> U,
   {
     ParseSuccess {
       value: f(self.value, self.span),
@@ -76,4 +76,4 @@ where
   }
 }
 
-pub type ParseResult<'str, T> = Result<ParseSuccess<'str, T>, ParseError<'str>>;
+pub type ParseResult<'src, T> = Result<ParseSuccess<'src, T>, ParseError<'src>>;

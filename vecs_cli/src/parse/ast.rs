@@ -7,28 +7,28 @@ use crate::parse::data::str::Span;
 // A positional entry in a table may be a normal value or the embedment of another
 // table.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ListEntry<'str> {
-  Expr(Expression<'str>),
-  Embed(Expression<'str>),
+pub enum ListEntry<'src> {
+  Expr(Expression<'src>),
+  Embed(Expression<'src>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExpressionKind<'str> {
+pub enum ExpressionKind<'src> {
   Integer(i128),
-  Symbol(&'str str),
-  Variable(&'str str),
+  Symbol(&'src str),
+  Variable(&'src str),
 
-  Application(Vec<Expression<'str>>),
-  List(Vec<ListEntry<'str>>),
+  Application(Vec<Expression<'src>>),
+  List(Vec<ListEntry<'src>>),
 }
 
 #[derive(Debug, Clone, Eq, Educe)]
 #[educe(PartialEq)]
-pub struct Expression<'str> {
-  pub kind: ExpressionKind<'str>,
+pub struct Expression<'src> {
+  pub kind: ExpressionKind<'src>,
 
   #[educe(PartialEq(ignore))]
-  pub span: Span<'str>,
+  pub span: Span<'src>,
 }
 
 fn write_indent<W: fmt::Write>(w: &mut W, indent: usize) -> fmt::Result {
@@ -39,8 +39,8 @@ fn write_indent<W: fmt::Write>(w: &mut W, indent: usize) -> fmt::Result {
   Ok(())
 }
 
-impl<'str> Expression<'str> {
-  pub fn new(kind: ExpressionKind<'str>, span: Span<'str>) -> Self {
+impl<'src> Expression<'src> {
+  pub fn new(kind: ExpressionKind<'src>, span: Span<'src>) -> Self {
     Self { kind, span }
   }
 
@@ -95,9 +95,9 @@ impl<'str> Expression<'str> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Ast<'str>(pub Vec<Expression<'str>>);
+pub struct Ast<'src>(pub Vec<Expression<'src>>);
 
-impl<'str> fmt::Display for Ast<'str> {
+impl<'src> fmt::Display for Ast<'src> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "Ast\n")?;
 

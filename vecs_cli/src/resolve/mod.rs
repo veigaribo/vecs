@@ -20,14 +20,14 @@ use crate::{
 // This bundles information that is communicated between functions but is only used
 // in error messages.
 #[derive(Debug, Copy, Clone)]
-pub struct ResolveMeta<'a, 'b, 'c> {
-  pub ast: &'b Ast<'a>,
-  pub cst: &'c Cst<'a>,
-  pub span: Span<'a>,
+pub struct ResolveMeta<'src, 'a, 'b> {
+  pub ast: &'a Ast<'src>,
+  pub cst: &'b Cst<'src>,
+  pub span: Span<'src>,
 }
 
-pub fn resolve<'a>(ast: Ast<'a>) -> ResolveResult<'a, Cst<'a>> {
-  let table = VarTable::<'a>::new();
+pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
+  let table = VarTable::<'src>::new();
   let mut cst = Cst::default();
 
   let exprs = &ast.0;

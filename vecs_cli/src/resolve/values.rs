@@ -11,28 +11,28 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ValueKind<'a> {
+pub enum ValueKind<'src> {
   Integer(i128),
-  Symbol(&'a str),
-  List(Vec<Value<'a>>),
+  Symbol(&'src str),
+  List(Vec<Value<'src>>),
 }
 
 #[derive(Debug, Clone, Eq, Educe)]
 #[educe(PartialEq)]
-pub struct Value<'a> {
-  pub kind: ValueKind<'a>,
+pub struct Value<'src> {
+  pub kind: ValueKind<'src>,
 
   #[educe(PartialEq(ignore))]
-  pub span: Span<'a>,
+  pub span: Span<'src>,
 }
 
-impl<'a> Value<'a> {
-  pub fn new(kind: ValueKind<'a>, span: Span<'a>) -> Self {
+impl<'src> Value<'src> {
+  pub fn new(kind: ValueKind<'src>, span: Span<'src>) -> Self {
     Value { kind, span }
   }
 }
 
-impl<'a> Display for Value<'a> {
+impl<'src> Display for Value<'src> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self.kind {
       ValueKind::Integer(x) => write!(f, "{}", x),
@@ -58,26 +58,26 @@ impl<'a> Display for Value<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct VarTable<'a> {
-  pub variables: HashMap<&'a str, Value<'a>>,
+pub struct VarTable<'src> {
+  pub variables: HashMap<&'src str, Value<'src>>,
 }
 
-impl<'a> VarTable<'a> {
+impl<'src> VarTable<'src> {
   pub fn new() -> Self {
     Self {
       variables: HashMap::new(),
     }
   }
 
-  // pub fn add(&mut self, name: &'a str, value: Value<'a>) {
+  // pub fn add(&mut self, name: &'src str, value: Value<'src>) {
   //   self.variables.insert(name, value);
   // }
 
-  pub fn resolve_var(&self, name: &'a str) -> Option<Value<'a>> {
+  pub fn resolve_var(&self, name: &'src str) -> Option<Value<'src>> {
     self.variables.get(name).cloned()
   }
 
-  pub fn resolve(&self, expr: &Expression<'a>) -> ResolveResult<'a, Value<'a>> {
+  pub fn resolve(&self, expr: &Expression<'src>) -> ResolveResult<'src, Value<'src>> {
     let span = expr.span;
 
     match &expr.kind {

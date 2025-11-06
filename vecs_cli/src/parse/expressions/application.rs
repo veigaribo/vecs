@@ -8,9 +8,9 @@ use crate::parse::{
   util::str::parse_whitespace,
 };
 
-pub fn parse_application<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+pub fn parse_application<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   let start = src.clone();
 
   // Unlikely for there to be more than that.

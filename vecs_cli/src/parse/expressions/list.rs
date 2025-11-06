@@ -8,9 +8,9 @@ use crate::parse::{
   util::str::{parse_char, parse_str, parse_whitespace},
 };
 
-pub fn parse_list<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+pub fn parse_list<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   let start = src.clone();
 
   let mut list = Vec::<ListEntry>::new();

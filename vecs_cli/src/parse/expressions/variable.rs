@@ -9,9 +9,9 @@ use crate::parse::{
 
 // This parses variable accesses.
 
-pub fn parse_variable<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+pub fn parse_variable<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   let start = src.clone();
 
   let marker = parse_char('$', src)?;

@@ -14,9 +14,9 @@ use crate::parse::{
 static INTEGER_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new("^[0-9][0-9_]*").expect("integer regex error"));
 
-pub fn parse_integer<'str>(
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+pub fn parse_integer<'src>(
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   let start = src.clone();
 
   let matsh = parse_regex(src, &INTEGER_REGEX)?;

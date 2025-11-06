@@ -3,10 +3,10 @@ use crate::parse::data::{
   src::ParseSrc,
 };
 
-pub fn parse_str<'str>(
-  target: &'str str,
-  src: ParseSrc<'str>,
-) -> ParseResult<'str, &'str str> {
+pub fn parse_str<'src>(
+  target: &'src str,
+  src: ParseSrc<'src>,
+) -> ParseResult<'src, &'src str> {
   let start = src.clone();
 
   let target_iter = ParseSrc::from(target);
@@ -48,10 +48,10 @@ pub fn parse_str<'str>(
   })
 }
 
-pub fn parse_char<'str>(
+pub fn parse_char<'src>(
   target: char,
-  mut src: ParseSrc<'str>,
-) -> ParseResult<'str, char> {
+  mut src: ParseSrc<'src>,
+) -> ParseResult<'src, char> {
   let start = src.clone();
 
   if let Some(next) = src.peek() {
@@ -79,7 +79,7 @@ pub fn parse_char<'str>(
   })
 }
 
-pub fn parse_whitespace<'str>(mut src: ParseSrc<'str>) -> ParseResult<'str, ()> {
+pub fn parse_whitespace<'src>(mut src: ParseSrc<'src>) -> ParseResult<'src, ()> {
   let start = src.clone();
 
   while let Some(next) = src.peek() {

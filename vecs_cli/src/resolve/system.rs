@@ -5,10 +5,10 @@ use crate::resolve::{
   ResolveMeta,
 };
 
-pub fn resolve_system<'a>(
-  meta: ResolveMeta<'a, '_, '_>,
-  cdr: &[Value<'a>],
-) -> ResolveResult<'a, System<'a>> {
+pub fn resolve_system<'src>(
+  meta: ResolveMeta<'src, '_, '_>,
+  cdr: &[Value<'src>],
+) -> ResolveResult<'src, System<'src>> {
   let mut s = SystemBuilder::default();
   let maybe_value = cdr.get(0);
 

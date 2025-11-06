@@ -16,9 +16,9 @@ use crate::parse::{
   },
 };
 
-fn parse_basic_expression<'str>(
-  src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+fn parse_basic_expression<'src>(
+  src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   let head = src.peek();
 
   if head.is_none() {
@@ -41,8 +41,8 @@ fn parse_basic_expression<'str>(
   }
 }
 
-pub fn parse_expression<'str>(
-  src: ParseSrc<'str>,
-) -> ParseResult<'str, Expression<'str>> {
+pub fn parse_expression<'src>(
+  src: ParseSrc<'src>,
+) -> ParseResult<'src, Expression<'src>> {
   parse_application(src)
 }
