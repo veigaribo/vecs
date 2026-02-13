@@ -365,6 +365,16 @@ fn resolve_options<'src, 'b>(
         }
       }
     } else {
+      if let ValueKind::Symbol(_) = arg1.kind {
+        return Err(ResolveError::new(
+          arg1.span,
+          format!(
+            "expected options but found {} instead. maybe you forgot a semicolon?",
+            arg1,
+          ),
+        ));
+      }
+
       return Err(ResolveError::new(
         arg1.span,
         format!("options must be a list. instead found {}", arg1,),

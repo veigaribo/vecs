@@ -32,7 +32,7 @@ pub fn resolve_system<'src>(
               return Err(ResolveError::new(
                 value.span,
                 format!(
-                  "system param should be a single component name symbol. instead it's {}",
+                  "system param should be a single component name symbol. instead it's {}. maybe you forgot a semicolon?",
                   value,
                 ),
               ));
