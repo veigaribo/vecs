@@ -67,10 +67,26 @@ pub struct State<'src> {
   pub systems: Vec<Vec<&'src str>>,
 }
 
+// Settings.
+
+#[derive(Debug, Copy, Clone)]
+pub struct Settings {
+  pub default_component_max: usize,
+}
+
+impl Default for Settings {
+  fn default() -> Self {
+    Self {
+      default_component_max: 200,
+    }
+  }
+}
+
 // CST. See the top comment for what it means.
 
 #[derive(Debug, Clone, Default)]
 pub struct Cst<'src> {
+  pub settings: Settings,
   pub components: HashMap<&'src str, Struct<'src>>,
   pub events: HashMap<&'src str, Struct<'src>>,
   pub systems: HashMap<&'src str, System<'src>>,

@@ -1,9 +1,12 @@
 pub mod cst;
 pub mod result;
+pub mod setting;
 pub mod state;
 pub mod strukt;
 pub mod system;
 pub mod values;
+
+use setting::resolve_setting;
 
 use crate::{
   parse::{ast::Ast, data::str::Span},
@@ -64,13 +67,15 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
       } else if car.kind == ValueKind::Symbol("state") {
         let state = resolve_state(info, cdr)?;
         cst.add_state(state);
+      } else if car.kind == ValueKind::Symbol("set") {
+        resolve_setting(info.span, cdr, &mut cst)?;
       } else if let ValueKind::Symbol(_) = car.kind {
         return Err(ResolveError::new(car.span, format!("unknown tag {}", car)));
       } else {
         return Err(ResolveError::new(
           car.span,
           format!(
-            "expected a tag: `component`, `event` or `system`. instead found {}",
+            "expected a tag: `component`, `event`, `system`, `state` or `set`. instead found {}",
             car,
           ),
         ));

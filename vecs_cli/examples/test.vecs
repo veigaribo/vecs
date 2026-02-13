@@ -1,3 +1,5 @@
+set default_component_max 220;
+
 component transform {
   double x;
   double y;
