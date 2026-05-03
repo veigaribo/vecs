@@ -1,4 +1,5 @@
 pub mod cst;
+pub mod node;
 pub mod result;
 pub mod setting;
 pub mod state;
@@ -6,6 +7,8 @@ pub mod strukt;
 pub mod system;
 pub mod values;
 
+use cst::StructField;
+use node::resolve_node;
 use setting::resolve_setting;
 
 use crate::{
@@ -32,6 +35,25 @@ pub struct ResolveMeta<'src, 'a, 'b> {
 pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
   let table = VarTable::<'src>::new();
   let mut cst = Cst::default();
+
+  // The default `frame` event.
+  cst.add_event(cst::Struct {
+    name: "frame",
+    fields: vec![
+      StructField {
+        typ: vec!["float"],
+        name: "delta",
+      },
+      StructField {
+        typ: vec!["double"],
+        name: "runtime",
+      },
+      StructField {
+        typ: vec!["uint64_t"],
+        name: "frame",
+      },
+    ],
+  });
 
   let exprs = &ast.0;
 
@@ -61,9 +83,13 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
       } else if car.kind == ValueKind::Symbol("event") {
         let event = resolve_struct(info, cdr)?;
         cst.add_event(event);
+      } else if car.kind == ValueKind::Symbol("node") {
+        let node = resolve_node(info, cdr)?;
+        cst.add_node(node);
       } else if car.kind == ValueKind::Symbol("system") {
-        let system = resolve_system(info, cdr)?;
+        let (system, node) = resolve_system(info, cdr)?;
         cst.add_system(system);
+        cst.add_node(node);
       } else if car.kind == ValueKind::Symbol("state") {
         let state = resolve_state(info, cdr)?;
         cst.add_state(state);
@@ -75,7 +101,7 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
         return Err(ResolveError::new(
           car.span,
           format!(
-            "expected a tag: `component`, `event`, `system`, `state` or `set`. instead found {}",
+            "expected a tag: `component`, `event`, `node`, `system`, `state` or `set`. instead found {}",
             car,
           ),
         ));

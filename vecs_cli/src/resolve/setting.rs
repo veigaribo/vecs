@@ -43,14 +43,14 @@ pub fn resolve_setting<'src>(
       match setting_name {
         "default_component_max" => {
           if let ValueKind::Integer(integer) = value.kind {
-            match TryInto::<usize>::try_into(integer) {
+            match TryInto::<u64>::try_into(integer) {
               Ok(max) => cst.settings.default_component_max = max,
               Err(_) => {
                 return Err(ResolveError::new(
                   value.span,
                   format!(
                     "{} is not a valid count or would be way too large (bounds: [{}, {}])",
-                    integer, usize::MIN, usize::MAX,
+                    integer, u64::MIN, u64::MAX,
                   ),
                 ));
               }

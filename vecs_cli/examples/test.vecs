@@ -1,4 +1,4 @@
-set default_component_max 220;
+// set default_component_max 220;
 
 component transform {
   double x;
@@ -6,7 +6,7 @@ component transform {
 };
 
 component render {
-  texture_t texture;
+  int texture;
 };
 
 event mouse_click {
@@ -15,13 +15,13 @@ event mouse_click {
   uint8_t button;
 };
 
-system move { transform };
+system move on mouse_click { transform };
 system render { transform; render };
 
 state main {
   components {
     transform;
-    render { max 110 };
+    render;
   };
 
   systems {

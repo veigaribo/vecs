@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use derive_builder::Builder;
 
@@ -20,6 +20,21 @@ pub struct Struct<'src> {
   pub fields: Vec<StructField<'src>>,
 }
 
+impl<'src> PartialEq for Struct<'src> {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name
+  }
+}
+
+// We make sure there are no name conflicts.
+impl<'src> Eq for Struct<'src> {}
+
+impl<'src> std::hash::Hash for Struct<'src> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.name.hash(state)
+  }
+}
+
 impl<'src> StructBuilder<'src> {
   pub fn add_field(&mut self, field: StructField<'src>) {
     if let Some(ref mut fields) = self.fields {
@@ -30,22 +45,62 @@ impl<'src> StructBuilder<'src> {
   }
 }
 
+// Components.
+
+#[derive(Debug, Clone, Builder)]
+pub struct Component<'src> {
+  pub strukt: Struct<'src>,
+  // mask[i] & (1 << j)
+  pub mask_i: u16,
+  pub mask_j: u8,
+}
+
+impl<'src> Component<'src> {
+  pub fn name(&self) -> &'src str {
+    self.strukt.name
+  }
+
+  pub fn id(&self) -> u16 {
+    self.mask_i << 6 & (self.mask_j as u16)
+  }
+}
+
+// Nodes.
+
+#[derive(Debug, Clone, Builder, PartialEq, Eq, Hash)]
+pub struct Node<'src> {
+  pub name: &'src str,
+  pub components: BTreeSet<&'src str>,
+
+  // This vec having `n` elements does not mean the final mask will have `n` elements;
+  // it just means that all components afterwards are zero.
+  #[builder(default = vec![])]
+  pub mask: Vec<u64>,
+}
+
+impl<'src> NodeBuilder<'src> {
+  pub fn init_components(&mut self) {
+    self.components = Some(BTreeSet::new());
+  }
+
+  pub fn add_component(&mut self, component: &'src str) {
+    if let Some(ref mut components) = self.components {
+      components.insert(component);
+    } else {
+      let mut set = BTreeSet::new();
+      set.insert(component);
+      self.components = Some(set);
+    }
+  }
+}
+
 // Systems.
 
 #[derive(Debug, Clone, Builder)]
 pub struct System<'src> {
   pub name: &'src str,
-  pub params: Vec<&'src str>,
-}
-
-impl<'src> SystemBuilder<'src> {
-  pub fn add_param(&mut self, param: &'src str) {
-    if let Some(ref mut params) = self.params {
-      params.push(param);
-    } else {
-      self.params = Some(vec![param]);
-    }
-  }
+  pub event: &'src str,
+  pub node: &'src str,
 }
 
 // States.
@@ -71,7 +126,7 @@ pub struct State<'src> {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Settings {
-  pub default_component_max: usize,
+  pub default_component_max: u64,
 }
 
 impl Default for Settings {
@@ -87,20 +142,66 @@ impl Default for Settings {
 #[derive(Debug, Clone, Default)]
 pub struct Cst<'src> {
   pub settings: Settings,
-  pub components: HashMap<&'src str, Struct<'src>>,
+  pub components: HashMap<&'src str, Component<'src>>,
   pub events: HashMap<&'src str, Struct<'src>>,
   pub systems: HashMap<&'src str, System<'src>>,
+  pub nodes: HashMap<&'src str, Node<'src>>,
+  pub node_mask_arr_size: u16,
 
   pub states: Vec<State<'src>>,
 }
 
+// These methods do not check for errors (e.g. a non-existant component in a node or
+// system) because it's usually more efficient to check for such things in the middle
+// of resolution.
 impl<'src> Cst<'src> {
-  pub fn add_component(&mut self, component: Struct<'src>) {
-    self.components.insert(component.name, component);
+  pub fn add_component(&mut self, strukt: Struct<'src>) {
+    let name = strukt.name;
+    let index = self.components.len();
+
+    // We want to be able to put `i` and `j` together as a 16-bit integer. `j` will
+    // always be a number between [0, 63], so it fits nicely in 6 bits. That leaves
+    // us 16-6 bits for `i`.
+    let max_components = 1 << (16 - 6);
+    if index > max_components {
+      panic!(
+        "too many components. currently the maximum supported is {}",
+        max_components
+      );
+    }
+
+    let mask_i: u16 = (index / 64).try_into().unwrap();
+    let mask_j: u8 = (index % 64).try_into().unwrap();
+
+    let component = Component {
+      strukt,
+      mask_i,
+      mask_j,
+    };
+
+    self.components.insert(name, component);
+    self.node_mask_arr_size = mask_i + 1;
   }
 
   pub fn add_event(&mut self, event: Struct<'src>) {
     self.events.insert(event.name, event);
+  }
+
+  // Will panic if a component is not found.
+  pub fn add_node(&mut self, mut node: Node<'src>) {
+    node.mask = Vec::with_capacity(self.node_mask_arr_size.into());
+    node.mask.resize(self.node_mask_arr_size.into(), 0);
+
+    for component_name in node.components.iter() {
+      let component = self.components.get(component_name).expect(&format!(
+        "node contains unknown component after resolution: {}",
+        component_name
+      ));
+
+      node.mask[component.mask_i as usize] |= 1 << component.mask_j;
+    }
+
+    self.nodes.insert(node.name, node);
   }
 
   pub fn add_system(&mut self, system: System<'src>) {

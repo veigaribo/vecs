@@ -1,20 +1,25 @@
 use crate::resolve::{
+  ResolveMeta,
   cst::{System, SystemBuilder},
   result::{ResolveError, ResolveResult},
   values::{Value, ValueKind},
-  ResolveMeta,
 };
+
+use super::cst::{Node, NodeBuilder};
 
 pub fn resolve_system<'src>(
   meta: ResolveMeta<'src, '_, '_>,
   cdr: &[Value<'src>],
-) -> ResolveResult<'src, System<'src>> {
+) -> ResolveResult<'src, (System<'src>, Node<'src>)> {
   let mut s = SystemBuilder::default();
+  let mut n = NodeBuilder::default();
   let maybe_value = cdr.get(0);
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
       s.name(name);
+      n.name(name);
+      s.node(name);
     } else {
       return Err(ResolveError::new(
         value.span,
@@ -22,63 +27,119 @@ pub fn resolve_system<'src>(
       ));
     }
 
-    let maybe_value = cdr.get(1);
+    let mut value_cursor = 1;
+    let maybe_value = cdr.get(value_cursor);
 
     if let Some(value) = maybe_value {
-      if let ValueKind::List(ref values) = value.kind {
-        for value in values {
-          if let ValueKind::Application(ref values) = value.kind {
-            if values.len() != 1 {
-              return Err(ResolveError::new(
-                value.span,
-                format!(
-                  "system param should be a single component name symbol. instead it's {}. maybe you forgot a semicolon?",
-                  value,
-                ),
-              ));
-            }
+      if let ValueKind::Symbol(ref on) = value.kind {
+        // `on <event>`
+        if *on == "on" {
+          value_cursor += 1;
+          let maybe_value = cdr.get(value_cursor);
 
-            let value = &values[0];
-
-            if let ValueKind::Symbol(param) = value.kind {
-              if meta.cst.components.contains_key(param) {
-                s.add_param(param);
+          if let Some(value) = maybe_value {
+            if let ValueKind::Symbol(event) = value.kind {
+              if meta.cst.events.contains_key(event) {
+                s.event(event);
+                value_cursor += 1;
               } else {
                 return Err(ResolveError::new(
                   value.span,
-                  format!("component `{}` not found.", param),
+                  format!("event `{}` not found", event),
                 ));
               }
             } else {
               return Err(ResolveError::new(
                 value.span,
-                format!("system parameter must be a symbol. instead found {}", value),
+                format!("expected an event name. instead found {}", value),
               ));
             }
           } else {
-            panic!(
-              "malformed ast: root expression is not an application. this is a bug.\n{}",
-              meta.ast,
-            );
+            return Err(ResolveError::new(
+              value.span,
+              format!("system missing its event name"),
+            ));
           }
+        } else {
+          return Err(ResolveError::new(
+            value.span,
+            format!("expected an `on` symbol. instead found {}", value),
+          ));
+        }
+      } else {
+        // Implied `frame` event
+        s.event("frame");
+      }
+
+      let maybe_values = cdr.get(value_cursor);
+      if let Some(values) = maybe_values {
+        if let ValueKind::List(ref values) = values.kind {
+          n.init_components();
+
+          for value in values {
+            if let ValueKind::Application(ref values) = value.kind {
+              if values.len() != 1 {
+                return Err(ResolveError::new(
+                  value.span,
+                  format!(
+                    "system param should be a single component name symbol. instead it's {}. maybe you forgot a semicolon?",
+                    value,
+                  ),
+                ));
+              }
+
+              let value = &values[0];
+
+              if let ValueKind::Symbol(param) = value.kind {
+                if meta.cst.components.contains_key(param) {
+                  n.add_component(param);
+                } else {
+                  return Err(ResolveError::new(
+                    value.span,
+                    format!("component `{}` not found", param),
+                  ));
+                }
+              } else {
+                return Err(ResolveError::new(
+                  value.span,
+                  format!(
+                    "system parameter must be a symbol. instead found {}",
+                    value
+                  ),
+                ));
+              }
+            } else {
+              panic!(
+                "malformed ast: root expression is not an application. this is a bug.\n{}",
+                meta.ast,
+              );
+            }
+          }
+        } else {
+          return Err(ResolveError::new(
+            value.span,
+            format!("expected a list of parameters. instead found {}", values),
+          ));
         }
       } else {
         return Err(ResolveError::new(
-          value.span,
-          format!("body of system should be a list. instead it's {}", value),
-        ));
-      }
-
-      if let Some(extra) = cdr.get(2) {
-        return Err(ResolveError::new(
           meta.span,
-          format!("unexpected value {}", extra),
+          format!("system {} is missing its body", value),
         ));
       }
     } else {
       return Err(ResolveError::new(
         meta.span,
-        format!("system {} is missing its body", value),
+        format!(
+          "expected either the system event (`on <event>`) or the parameter list, but found neither"
+        ),
+      ));
+    }
+
+    if let Some(extra) = cdr.get(value_cursor + 1) {
+      return Err(ResolveError::new(
+        meta.span,
+        format!("unexpected value {}", extra),
       ));
     }
   } else {
@@ -88,8 +149,14 @@ pub fn resolve_system<'src>(
     ));
   }
 
-  Ok(s.build().expect(&format!(
-    "failed to build system. this is a bug.\n{}",
-    meta.ast
-  )))
+  Ok((
+    s.build().expect(&format!(
+      "failed to build system. this is a bug.\n{}",
+      meta.ast
+    )),
+    n.build().expect(&format!(
+      "failed to build node. this is a bug.\n{}",
+      meta.ast
+    )),
+  ))
 }
