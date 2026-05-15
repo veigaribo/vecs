@@ -5,7 +5,7 @@ use crate::generate::generics::{common::FunctionName, dyn_arrays::DynArray};
 use super::common::StructName;
 
 // TODO: Make configurable and/or dynamic.
-const BUCKET_COUNT: usize = 16;
+const BUCKET_COUNT: usize = 32;
 
 pub struct HashDynArray {
   pub key_t: String,
@@ -72,7 +72,7 @@ impl<'a> Display for HashDynArrayHeader<'a> {
         "\n",
         "struct {struct_name} {{\n",
         "  {aux_dyn_arr_t} buckets[{BUCKET_COUNT}];\n",
-        "  size_t len;\n",
+        "  uint32_t len;\n",
         "}};\n",
         "\n",
         "void {method_init}({self_t} *self);\n",
@@ -114,6 +114,7 @@ impl<'a> Display for HashDynArrayImpl<'a> {
     let aux_dyn_arr_t = aux_dyn_arr_name.get_type_name();
 
     let hash_fn_name = FunctionName::new("hash", vec![key_t.as_str()]);
+    let eq_fn_name = FunctionName::new("eq", vec![key_t.as_str()]);
 
     write!(f, "{}\n", aux_dyn_arr.imple())?;
 
@@ -123,14 +124,14 @@ impl<'a> Display for HashDynArrayImpl<'a> {
         "// Hash dynamic array of `{element_t}` with key `{key_t}`.\n",
         "\n",
         "void {method_init}({self_t} *self) {{\n",
-        "  for (size_t i = 0; i < {BUCKET_COUNT}; ++i) {{\n",
+        "  for (uint32_t i = 0; i < {BUCKET_COUNT}; ++i) {{\n",
         "    {aux_method_init}(&self->buckets[i], 0);\n",
         "  }}\n",
         "  self->len = 0;\n",
         "}}\n",
         "\n",
         "static {aux_dyn_arr_t} *{method_get_bucket}({self_t} *self, {key_t} key) {{\n",
-        "  size_t bucket = {hash_fn_name}(key) % {BUCKET_COUNT};\n",
+        "  uint32_t bucket = {hash_fn_name}(key) % {BUCKET_COUNT};\n",
         "  return &self->buckets[bucket];\n",
         "}}\n",
         "\n",
@@ -142,9 +143,9 @@ impl<'a> Display for HashDynArrayImpl<'a> {
         "}}\n",
         "bool {method_get}({self_t} *self, {key_t} key, {element_t} *result) {{\n",
         "  {aux_dyn_arr_t} *bucket = {method_get_bucket}(self, key);\n",
-        "  for (size_t i = 0; i < bucket->len; ++i) {{\n",
+        "  for (uint32_t i = 0; i < bucket->len; ++i) {{\n",
         "    {aux_t} aux = bucket->items[i];\n",
-        "    if (aux.key == key) {{\n",
+        "    if ({eq_fn_name}(aux.key, key)) {{\n",
         "      {element_t} found = aux.value;\n",
         "      memcpy(result, &found, sizeof found);\n",
         "      return true;\n",
@@ -154,9 +155,9 @@ impl<'a> Display for HashDynArrayImpl<'a> {
         "}}\n",
         "bool {method_remove}({self_t} *self, {key_t} key, {element_t} *result) {{\n",
         "  {aux_dyn_arr_t} *bucket = {method_get_bucket}(self, key);\n",
-        "  for (size_t i = 0; i < bucket->len; ++i) {{\n",
+        "  for (uint32_t i = 0; i < bucket->len; ++i) {{\n",
         "    {aux_t} aux = bucket->items[i];\n",
-        "    if (aux.key == key) {{\n",
+        "    if ({eq_fn_name}(aux.key, key)) {{\n",
         "      {aux_t} aux = {aux_method_swap_remove}(bucket, i);\n",
         "      --self->len;\n",
         "      memcpy(result, &aux.value, sizeof aux.value);\n",
@@ -166,7 +167,7 @@ impl<'a> Display for HashDynArrayImpl<'a> {
         "  return false;\n",
         "}}\n",
         "void {method_destroy}({self_t} *self) {{\n",
-        "  for (size_t i = 0; i < {BUCKET_COUNT}; ++i) {{\n",
+        "  for (uint32_t i = 0; i < {BUCKET_COUNT}; ++i) {{\n",
         "    {aux_method_destroy}(&self->buckets[i]);\n",
         "  }}\n",
         "  self->len = 0;\n",
@@ -182,6 +183,7 @@ impl<'a> Display for HashDynArrayImpl<'a> {
       aux_method_swap_remove = aux_dyn_arr_name.method("swap_remove"),
       aux_method_destroy = aux_dyn_arr_name.method("destroy"),
       hash_fn_name = hash_fn_name,
+      eq_fn_name = eq_fn_name,
       self_t = self_t,
       BUCKET_COUNT = BUCKET_COUNT,
       method_init = struct_name.method("init"),

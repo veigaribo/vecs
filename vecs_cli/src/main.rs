@@ -10,6 +10,8 @@ mod resolve;
 use std::{
   fs::{self, File, OpenOptions},
   io::{self, Write, stdout},
+  path::PathBuf,
+  str::FromStr,
 };
 
 use clap::Parser as _;
@@ -31,12 +33,18 @@ fn main() {
   let ast = parse(src).expect("parsing error").value;
   let cst = resolve(ast).expect("resolving error");
 
+  let dest = PathBuf::from_str(&cli.dest).expect("failed to parse output directory");
+
+  if !dest.is_dir() {
+    panic!("dest ({}) should be a directory!", dest.display());
+  }
+
   let open_for_write = |filename: &str| -> io::Result<File> {
     OpenOptions::new()
       .create(true)
       .write(true)
       .truncate(true)
-      .open(filename)
+      .open(dest.join(filename))
   };
 
   let mut h_out_file: Box<dyn Write> = if cli.h_output == "-" {

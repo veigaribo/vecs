@@ -107,7 +107,7 @@ impl<'a> Display for Header<'a> {
     )?;
 
     // Used in every SparseDynArray.
-    DynArray::new("size_t".to_string()).header().fmt(f)?;
+    DynArray::new("uint32_t".to_string()).header().fmt(f)?;
 
     for event in self.data.events.values() {
       // Event struct:
@@ -134,20 +134,19 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
-        "struct vecs_sparse_array_id {{\n",
-        "  size_t index;\n",
-        "  size_t gen;\n",
+        "struct vecs_id {{\n",
+        "  uint32_t index;\n",
+        "  uint32_t gen;\n",
         "}};\n",
       ),
     )?;
 
-    // Entity to component hash dyn array:
-    HashDynArray::new(
-      "size_t".to_string(),
-      "struct vecs_sparse_array_id".to_string(),
-    )
-    .header()
-    .fmt(f)?;
+    // Used to access things from other things faster (index):
+    let index_hash_array =
+      HashDynArray::new("struct vecs_id".to_string(), "uint32_t".to_string());
+
+    let index_hash_array_name = index_hash_array.get_name();
+    index_hash_array.header().fmt(f)?;
 
     for component in self.data.components.values() {
       // Component struct:
@@ -198,20 +197,16 @@ impl<'a> Display for Header<'a> {
         };
 
         let component_t = format!("struct {}", component_struct_name);
-        let dyn_array_t = SparseDynArray::new(component_t.clone())
-          .get_name()
-          .get_type_name();
+        let dyn_array = SparseDynArray::new(component_t.clone());
+        let dyn_array_name = dyn_array.get_name();
 
-        write!(f, "  {} {};\n", dyn_array_t, component.name)?;
+        write!(f, "  struct {} {};\n", dyn_array_name, component.name)?;
 
-        let hash_dyn_array_t = HashDynArray::new(
-          "size_t".to_string(),
-          "struct vecs_sparse_array_id".to_string(),
-        )
-        .get_name()
-        .get_type_name();
-
-        write!(f, "  {} entity_to_{};\n", hash_dyn_array_t, component.name)?;
+        write!(
+          f,
+          "  struct {} entity_to_component_{};\n",
+          index_hash_array_name, component.name
+        )?;
       }
       write!(f, "}};\n\n")?;
     }
@@ -232,8 +227,7 @@ impl<'a> Display for Header<'a> {
       write!(f, "struct {} {{\n", node_struct_name)?;
 
       for component in node.components.iter() {
-        write!(f, "  size_t {}_index;\n", *component)?;
-        write!(f, "  size_t {}_gen;\n", *component)?;
+        write!(f, "  uint32_t {}_index;\n", *component)?;
       }
       write!(f, "}};\n\n")?;
 
@@ -290,6 +284,11 @@ impl<'a> Display for Header<'a> {
       let dyn_arr_struct_name = dyn_arr.get_name();
 
       write!(f, "  struct {} nodes_{};\n", dyn_arr_struct_name, node.name)?;
+      write!(
+        f,
+        "  struct {} entity_to_node_{};\n",
+        index_hash_array_name, node.name,
+      )?;
     }
 
     for event in self.data.events.values() {
@@ -307,6 +306,37 @@ impl<'a> Display for Header<'a> {
 
     write!(f, "}};\n\n")?;
 
+    // Component getters:
+    for node in self.data.nodes.values() {
+      for state in self.data.states.iter() {
+        let node_struct_name = NodeStructName { name: node.name };
+
+        for component in node.components.iter() {
+          let component_struct_name = ComponentStructName { name: component };
+
+          let component_t = format!("struct {}", component_struct_name);
+          let component_array = SparseDynArray::new(component_t.clone());
+          let component_array_name = component_array.get_name();
+
+          write!(
+            f,
+            concat!(
+              "static inline struct {component_struct_name} *vecs_state_{state_name}_node_{node_name}_get_{component_name}(struct vecs_engine *e, struct {node_struct_name} node) {{\n",
+              "  return {component_array_method_get_unchecked}(&e->state.{state_name}.{component_name}, node.{component_name}_index);\n",
+              "}}\n",
+            ),
+            component_struct_name = component_struct_name,
+            state_name = state.name,
+            node_name = node.name,
+            component_name = component,
+            node_struct_name = node_struct_name,
+            component_array_method_get_unchecked =
+              component_array_name.method("get_unchecked"),
+          )?;
+        }
+      }
+    }
+
     for system in self.data.systems.values() {
       // System function:
       let node_struct_name = NodeStructName { name: system.node };
@@ -315,8 +345,54 @@ impl<'a> Display for Header<'a> {
       write!(f, "// System `{}`.\n", system.name)?;
       write!(
         f,
-        "void {}(struct vecs_engine *engine, struct {} *node, struct {} *event);\n",
+        "void {}(struct vecs_engine *engine, struct {} node, struct {} event);\n",
         system.name, node_struct_name, event_struct_name,
+      )?;
+    }
+
+    // Engine methods:
+
+    write!(
+      f,
+      "struct vecs_id vecs_add_entity(struct vecs_engine *e);\n",
+    )?;
+
+    for state in self.data.states.iter() {
+      // Add components:
+      for component in state.components.iter() {
+        let component_struct_name = ComponentStructName {
+          name: component.name,
+        };
+
+        write!(
+          f,
+          concat!(
+            "struct vecs_id vecs_{state_name}_add_component_{component_name}(struct vecs_engine *e, struct vecs_id entity, struct {component_struct_name} component);\n",
+            "bool vecs_{state_name}_remove_component_{component_name}(struct vecs_engine *e, struct vecs_id entity);\n",
+            "void vecs_{state_name}_disable_component_{component_name}(struct vecs_engine *e, struct vecs_id entity);\n",
+            "void vecs_{state_name}_enable_component_{component_name}(struct vecs_engine *e, struct vecs_id entity);\n\n",
+          ),
+          state_name = state.name,
+          component_name = component.name,
+          component_struct_name = component_struct_name,
+        )?;
+      }
+
+      // State loops:
+      write!(
+        f,
+        "void vecs_run_state_{}(struct vecs_engine *e);\n\n",
+        state.name
+      )?;
+    }
+
+    // Event emition:
+    for event in self.data.events.values() {
+      let event_struct_name = EventStructName { name: event.name };
+      write!(
+        f,
+        "void vecs_emit_{}(struct vecs_engine *e, struct {} ev);\n",
+        event.name, event_struct_name,
       )?;
     }
 

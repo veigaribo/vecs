@@ -60,9 +60,9 @@ impl<'src> Component<'src> {
     self.strukt.name
   }
 
-  pub fn id(&self) -> u16 {
-    self.mask_i << 6 & (self.mask_j as u16)
-  }
+  // pub fn id(&self) -> u16 {
+  //   self.mask_i << 6 & (self.mask_j as u16)
+  // }
 }
 
 // Nodes.

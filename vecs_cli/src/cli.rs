@@ -7,6 +7,10 @@ pub struct Cli {
   /// Path to Vecs source file
   pub source: String,
 
+  /// Path to output directory
+  #[arg(short = 'o', long = "out-dir", default_value = ".")]
+  pub dest: String,
+
   /// Path of generated C file
   #[arg(short = 'C', long = "c-out", default_value = "vecs.c")]
   pub c_output: String,

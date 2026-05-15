@@ -115,7 +115,7 @@ void test_sparse_dyn_array() {
   vecs_sparse_dyn_array_render_init(&arr, 0);
   printf("#r: %zu\n", arr.len);
 
-  size_t ri[5] = {0}, rg[5] = {0};
+  uint32_t ri[5] = {0}, rg[5] = {0};
   vecs_sparse_dyn_array_render_push(&arr, r1, &ri[0], &rg[0]);
   vecs_sparse_dyn_array_render_push(&arr, r2, &ri[1], &rg[1]);
   vecs_sparse_dyn_array_render_push(&arr, r3, &ri[2], &rg[2]);
@@ -143,47 +143,46 @@ void test_sparse_dyn_array() {
 // Hash dyn arrays:
 
 #define vecs_hash_dyn_array_id_pair                                            \
-  _VECSs12_hash_dyn_array_aux229ae29ca35818fa89308d8ed0a1aa92
+  _VECSs12_hash_dyn_array_aux2228f07f119375aa982c80e9e2d83e72
 #define vecs_hash_dyn_array_id                                                 \
-  _VECSse_hash_dyn_array229ae29ca35818fa89308d8ed0a1aa92
+  _VECSse_hash_dyn_array2228f07f119375aa982c80e9e2d83e72
 #define vecs_hash_dyn_array_id_init                                            \
-  _VECSse_hash_dyn_array229ae29ca35818fa89308d8ed0a1aa92_M4_initd41d8cd98f00b204e9800998ecf8427e
+  _VECSse_hash_dyn_array2228f07f119375aa982c80e9e2d83e72_M4_initd41d8cd98f00b204e9800998ecf8427e
 #define vecs_hash_dyn_array_id_add                                             \
-  _VECSse_hash_dyn_array229ae29ca35818fa89308d8ed0a1aa92_M3_addd41d8cd98f00b204e9800998ecf8427e
+  _VECSse_hash_dyn_array2228f07f119375aa982c80e9e2d83e72_M3_addd41d8cd98f00b204e9800998ecf8427e
 #define vecs_hash_dyn_array_id_get                                             \
-  _VECSse_hash_dyn_array229ae29ca35818fa89308d8ed0a1aa92_M3_getd41d8cd98f00b204e9800998ecf8427e
+  _VECSse_hash_dyn_array2228f07f119375aa982c80e9e2d83e72_M3_getd41d8cd98f00b204e9800998ecf8427e
 #define vecs_hash_dyn_array_id_remove                                          \
-  _VECSse_hash_dyn_array229ae29ca35818fa89308d8ed0a1aa92_M6_removed41d8cd98f00b204e9800998ecf8427e
+  _VECSse_hash_dyn_array2228f07f119375aa982c80e9e2d83e72_M6_removed41d8cd98f00b204e9800998ecf8427e
 #define vecs_hash_dyn_array_id_destroy                                         \
-  _VECSse_hash_dyn_array229ae29ca35818fa89308d8ed0a1aa92_M7_destroyd41d8cd98f00b204e9800998ecf8427e
+  _VECSse_hash_dyn_array2228f07f119375aa982c80e9e2d83e72_M7_destroyd41d8cd98f00b204e9800998ecf8427e
 
 void test_hash_dyn_array() {
-  struct vecs_sparse_array_id c1 = {.index = 0, .gen = 4};
-  struct vecs_sparse_array_id c2 = {.index = 1, .gen = 3};
-  struct vecs_sparse_array_id c3 = {.index = 2, .gen = 2};
-  struct vecs_sparse_array_id c4 = {.index = 3, .gen = 1};
-  struct vecs_sparse_array_id c5 = {.index = 4, .gen = 0};
+  struct vecs_id c[] = {
+      {.index = 0, .gen = 4}, {.index = 1, .gen = 3}, {.index = 2, .gen = 2},
+      {.index = 3, .gen = 1}, {.index = 4, .gen = 0},
+  };
 
   struct vecs_hash_dyn_array_id map;
   vecs_hash_dyn_array_id_init(&map);
   printf("#r: %zu\n", map.len);
 
-  struct vecs_sparse_array_id rc2, rc5;
-  vecs_hash_dyn_array_id_add(&map, 0, c1);
-  vecs_hash_dyn_array_id_add(&map, 1, c2);
-  vecs_hash_dyn_array_id_add(&map, 2, c3);
-  vecs_hash_dyn_array_id_remove(&map, 1, &rc2);
-  vecs_hash_dyn_array_id_add(&map, 3, c4);
-  vecs_hash_dyn_array_id_add(&map, 4, c5);
-  vecs_hash_dyn_array_id_remove(&map, 4, &rc5);
+  uint32_t rc2, rc5;
+  vecs_hash_dyn_array_id_add(&map, c[0], 0);
+  vecs_hash_dyn_array_id_add(&map, c[1], 1);
+  vecs_hash_dyn_array_id_add(&map, c[2], 2);
+  vecs_hash_dyn_array_id_remove(&map, c[1], &rc2);
+  vecs_hash_dyn_array_id_add(&map, c[3], 3);
+  vecs_hash_dyn_array_id_add(&map, c[4], 4);
+  vecs_hash_dyn_array_id_remove(&map, c[4], &rc5);
   printf("#r: %zu\n", map.len);
 
   for (size_t i = 0; i < 5; ++i) {
-    struct vecs_sparse_array_id c;
-    bool found = vecs_hash_dyn_array_id_get(&map, i, &c);
+    uint32_t v;
+    bool found = vecs_hash_dyn_array_id_get(&map, c[i], &v);
 
     if (found) {
-      printf("{%zu}. index: %zu, gen: %zu\n", i, c.index, c.gen);
+      printf("{%zu}. v: %d\n", i, v);
     } else {
       printf("{%zu}. null\n", i);
     }
@@ -206,3 +205,9 @@ int main() {
   printf("# Hash dyn arrays:\n");
   test_hash_dyn_array();
 }
+
+void move(struct vecs_engine *engine, struct vecs_node_move *node,
+          struct vecs_event_mouse_click event) {}
+
+void render(struct vecs_engine *engine, struct vecs_node_render *node,
+            struct vecs_event_frame event) {}
