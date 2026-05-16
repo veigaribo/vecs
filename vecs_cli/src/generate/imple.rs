@@ -5,9 +5,13 @@ use crate::resolve::cst::Cst;
 use super::{
   common::{ComponentStructName, EventStructName, NodeStructName},
   generics::{
-    common::FunctionName, dyn_arrays::DynArray, dyn_queue::DynQueue,
-    hash_dyn_arrays::HashDynArray, sparse_dyn_arrays::SparseDynArray,
+    common::{function_name, method_name},
+    dyn_arrays::DynArray,
+    dyn_queue::DynQueue,
+    hash_dyn_arrays::HashDynArray,
+    sparse_dyn_arrays::SparseDynArray,
   },
+  masks::{ComponentMaskName, NodeMaskName},
 };
 
 pub struct Impl<'a> {
@@ -21,21 +25,20 @@ impl<'a> Display for Impl<'a> {
     write!(f, "#include <string.h>\n")?;
     write!(f, "#include \"{}\"\n\n", self.header_name)?;
 
-    DynArray::new("uint32_t".to_string()).imple().fmt(f)?;
+    DynArray::new("uint32_t").imple().fmt(f)?;
 
     for event in self.data.events.values() {
-      let event_struct_name = EventStructName { name: event.name };
-      let event_t = format!("struct {}", event_struct_name);
+      let event_t = EventStructName::new(event.name);
       DynQueue::new(event_t).imple().fmt(f)?;
     }
 
-    let id_hash_fn_name = FunctionName::new("hash", vec!["struct vecs_id"]);
+    let id_hash_fn_name = function_name!("hash"; "vecs_id_t");
 
     write!(
       f,
       concat!(
         "// http://www.cse.yorku.ca/~oz/hash.html\n",
-        "static inline uint32_t {hash_fn_name}(struct vecs_id key) {{\n",
+        "static inline uint32_t {hash_fn_name}(vecs_id_t key) {{\n",
         "  uint32_t hash = 5381;\n",
         "  /* hash * 33 + c */\n",
         "  for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i += 8) {{\n",
@@ -52,62 +55,56 @@ impl<'a> Display for Impl<'a> {
       hash_fn_name = id_hash_fn_name,
     )?;
 
-    let id_eq_fn_name = FunctionName::new("eq", vec!["struct vecs_id"]);
+    let id_eq_fn_name = function_name!("eq"; "vecs_id_t");
 
     write!(
       f,
       concat!(
         "// http://www.cse.yorku.ca/~oz/hash.html\n",
-        "static inline bool {eq_fn_name}(struct vecs_id a, struct vecs_id b) {{\n",
+        "static inline bool {eq_fn_name}(vecs_id_t a, vecs_id_t b) {{\n",
         "  return a.index == b.index && a.gen == b.gen;\n",
         "}}\n",
       ),
       eq_fn_name = id_eq_fn_name,
     )?;
 
-    let index_hash_array =
-      HashDynArray::new("struct vecs_id".to_string(), "uint32_t".to_string());
+    let index_hash_array = HashDynArray::new("vecs_id_t", "uint32_t");
 
-    let index_hash_array_name = index_hash_array.get_name();
+    let index_hash_array_t = index_hash_array.get_type();
     index_hash_array.imple().fmt(f)?;
 
     for component in self.data.components.values() {
       let component_name = component.name();
-      let component_struct_name = ComponentStructName {
-        name: component_name,
-      };
+      let component_t = ComponentStructName::new(component_name);
 
-      let component_t = format!("struct {}", component_struct_name);
       DynArray::new(component_t.clone()).imple().fmt(f)?;
       SparseDynArray::new(component_t.clone()).imple().fmt(f)?;
     }
 
     for node in self.data.nodes.values() {
-      let node_struct_name = NodeStructName { name: node.name };
-      let node_t = format!("struct {}", node_struct_name);
+      let node_t = NodeStructName::new(node.name);
       DynArray::new(node_t).imple().fmt(f)?;
     }
 
-    let entity_t = "struct vecs_entity".to_string();
-    DynArray::new(entity_t.clone()).imple().fmt(f)?;
-    let entity_array = SparseDynArray::new(entity_t);
+    DynArray::new("vecs_entity_t").imple().fmt(f)?;
+    let entity_array = SparseDynArray::new("vecs_entity_t");
     entity_array.imple().fmt(f)?;
 
     // Engine methods:
 
-    let entity_array_struct_name = entity_array.get_name();
+    let entity_array_t = entity_array.get_type();
 
     write!(
       f,
       concat!(
-        "struct vecs_id vecs_add_entity(struct vecs_engine *e) {{\n",
-        "  struct vecs_entity ent = {{0}};\n",
-        "  struct vecs_id id;\n",
+        "vecs_id_t vecs_add_entity(vecs_engine_t *e) {{\n",
+        "  vecs_entity_t ent = {{0}};\n",
+        "  vecs_id_t id;\n",
         "  {entity_array_method_push}(&e->entities, ent, &id.index, &id.gen);\n",
         "  return id;\n",
         "}}\n",
       ),
-      entity_array_method_push = entity_array_struct_name.method("push"),
+      entity_array_method_push = method_name!(&entity_array_t, "push"),
     )?;
 
     // Mask utilities:
@@ -137,25 +134,21 @@ impl<'a> Display for Impl<'a> {
 
     for state in self.data.states.iter() {
       for component in state.components.iter() {
-        let component_struct_name = ComponentStructName {
-          name: component.name,
-        };
+        let component_t = ComponentStructName::new(component.name);
+        let component_mask_name = ComponentMaskName::new(component.name);
 
-        let entity_array = SparseDynArray::new("struct vecs_entity".to_string());
-        let entity_array_name = entity_array.get_name();
+        let entity_array = SparseDynArray::new("vecs_entity_t");
+        let entity_array_name = entity_array.get_type();
 
-        let component_t = format!("struct {}", component_struct_name);
         let component_array = SparseDynArray::new(component_t.clone());
-        let component_array_name = component_array.get_name();
-
-        let component_mask_name = format!("vecs_component_{}_mask", component.name);
+        let component_array_name = component_array.get_type();
 
         // Add components:
         write!(
           f,
           concat!(
-            "struct vecs_id vecs_{state_name}_add_component_{component_name}(struct vecs_engine *e, struct vecs_id entity, {component_t} component) {{\n",
-            "  struct vecs_id component_id;\n",
+            "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
+            "  vecs_id_t component_id;\n",
             "  {component_array_method_push}(&e->state.{state_name}.{component_name}, component, &component_id.index, &component_id.gen);\n",
             "  {entity_to_component_array_method_add}(&e->state.{state_name}.entity_to_component_{component_name}, entity, component_id.index);\n",
             "\n",
@@ -166,51 +159,53 @@ impl<'a> Display for Impl<'a> {
           state_name = state.name,
           component_name = component.name,
           component_t = component_t,
-          component_array_method_push = component_array_name.method("push"),
-          entity_to_component_array_method_add = index_hash_array_name.method("add"),
+          component_array_method_push = method_name!(&component_array_name, "push"),
+          entity_to_component_array_method_add =
+            method_name!(&index_hash_array_t, "add"),
         )?;
 
         // Remove components:
         write!(
           f,
           concat!(
-            "bool vecs_{state_name}_remove_component_{component_name}(struct vecs_engine *e, struct vecs_id entity) {{\n",
+            "bool vecs_{state_name}_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
             "  vecs_{state_name}_disable_component_{component_name}(e, entity);\n",
             "\n",
-            "  struct vecs_id component_id;\n",
+            "  vecs_id_t component_id;\n",
             "  bool found = {entity_to_component_array_method_remove}(&e->state.{state_name}.entity_to_component_{component_name}, entity, &component_id.index);\n",
             "  if (!found)\n",
             "    return false;\n",
             "  {component_array_method_remove}(&e->state.{state_name}.{component_name}, component_id.index);\n",
+            "  return true;\n",
             "}}\n",
           ),
           state_name = state.name,
           component_name = component.name,
-          component_array_method_remove = component_array_name.method("remove"),
+          component_array_method_remove =
+            method_name!(&component_array_name, "remove"),
           entity_to_component_array_method_remove =
-            index_hash_array_name.method("remove"),
+            method_name!(&index_hash_array_t, "remove"),
         )?;
 
         // Disable components:
         write!(
           f,
           concat!(
-            "void vecs_{state_name}_disable_component_{component_name}(struct vecs_engine *e, struct vecs_id entity) {{\n",
-            "  struct vecs_entity *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
+            "void vecs_{state_name}_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
+            "  vecs_entity_t *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
           ),
           state_name = state.name,
-          entity_array_method_get = entity_array_name.method("get"),
+          entity_array_method_get = method_name!(&entity_array_name, "get"),
           component_name = component.name,
         )?;
 
         for node in self.data.nodes.values() {
           if node.components.contains(component.name) {
-            let node_struct_name = NodeStructName { name: node.name };
-            let node_mask_name = format!("vecs_node_{}_mask", node.name);
+            let node_t = NodeStructName::new(node.name);
+            let node_mask_name = NodeMaskName::new(node.name);
 
-            let node_t = format!("struct {}", node_struct_name);
             let node_array = DynArray::new(node_t);
-            let node_array_struct_name = node_array.get_name();
+            let node_array_t = node_array.get_type();
 
             write!(
               f,
@@ -223,8 +218,9 @@ impl<'a> Display for Impl<'a> {
               ),
               node_mask_name = node_mask_name,
               node_name = node.name,
-              node_array_method_remove = node_array_struct_name.method("swap_remove"),
-              entity_to_node_method_remove = index_hash_array_name.method("remove"),
+              node_array_method_remove = method_name!(&node_array_t, "swap_remove"),
+              entity_to_node_method_remove =
+                method_name!(&index_hash_array_t, "remove"),
             )?;
           }
         }
@@ -239,30 +235,30 @@ impl<'a> Display for Impl<'a> {
         write!(
           f,
           concat!(
-            "void vecs_{state_name}_enable_component_{component_name}(struct vecs_engine *e, struct vecs_id entity) {{\n",
-            "  struct vecs_entity *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
+            "void vecs_{state_name}_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
+            "  vecs_entity_t *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
             "  mix_mask({component_mask_name}, ent->mask);\n",
           ),
           state_name = state.name,
-          entity_array_method_get = entity_array_name.method("get"),
+          entity_array_method_get = method_name!(&entity_array_name, "get"),
           component_name = component.name,
           component_mask_name = component_mask_name,
         )?;
 
         for node in self.data.nodes.values() {
           if node.components.contains(component.name) {
-            let node_struct_name = NodeStructName { name: node.name };
-            let node_mask_name = format!("vecs_node_{}_mask", node.name);
+            let node_t = NodeStructName::new(node.name);
+            let node_mask_name = NodeMaskName::new(node.name);
 
             write!(
               f,
               concat!(
                 "  if (match_mask(ent->mask, {node_mask_name})) {{\n",
                 "    uint32_t component_index;\n",
-                "    struct {node_struct_name} node;\n",
+                "    {node_t} node;\n",
               ),
               node_mask_name = node_mask_name,
-              node_struct_name = node_struct_name,
+              node_t = node_t,
             )?;
 
             for node_component in node.components.iter() {
@@ -275,13 +271,12 @@ impl<'a> Display for Impl<'a> {
                 component_name = node_component,
                 state_name = state.name,
                 entity_to_component_array_method_get =
-                  index_hash_array_name.method("get"),
+                  method_name!(&index_hash_array_t, "get"),
               )?;
             }
 
-            let node_t = format!("struct {}", node_struct_name);
             let node_array = DynArray::new(node_t);
-            let node_array_struct_name = node_array.get_name();
+            let node_array_t = node_array.get_type();
 
             write!(
               f,
@@ -291,8 +286,8 @@ impl<'a> Display for Impl<'a> {
                 "  }}\n",
               ),
               node_name = node.name,
-              node_array_method_push = node_array_struct_name.method("push"),
-              entity_to_node_method_add = index_hash_array_name.method("add"),
+              node_array_method_push = method_name!(&node_array_t, "push"),
+              entity_to_node_method_add = method_name!(&index_hash_array_t, "add"),
             )?;
           }
         }
@@ -303,22 +298,21 @@ impl<'a> Display for Impl<'a> {
       // State loops:
       write!(
         f,
-        "void vecs_run_state_{}(struct vecs_engine *e) {{\n",
+        "void vecs_run_state_{}(vecs_engine_t *e) {{\n",
         state.name
       )?;
 
       for event in self.data.events.values() {
-        let event_struct_name = EventStructName { name: event.name };
-        let event_t = format!("struct {}", event_struct_name);
+        let event_t = EventStructName::new(event.name);
         let event_queue = DynQueue::new(event_t.clone());
-        let event_queue_name = event_queue.get_name();
+        let event_queue_name = event_queue.get_type();
 
         write!(f, "  while (e->events_{}.len > 0) {{\n", event.name)?;
         write!(
           f,
           "    {} ev = {}(&e->events_{});\n",
           event_t,
-          event_queue_name.method("dequeue"),
+          method_name!(&event_queue_name, "dequeue"),
           event.name,
         )?;
 
@@ -331,18 +325,18 @@ impl<'a> Display for Impl<'a> {
               .expect("failed to find system in state");
 
             if system.event == event.name {
-              let node_struct_name = NodeStructName { name: system.node };
+              let node_t = NodeStructName::new(system.node);
 
               write!(
                 f,
                 concat!(
                   "    for (size_t i = 0; i < e->nodes_{node_name}.len; ++i) {{\n",
-                  "      struct {node_struct_name} *node = &e->nodes_{node_name}.items[i];\n",
+                  "      {node_t} *node = &e->nodes_{node_name}.items[i];\n",
                   "      {system_name}(e, *node, ev);\n",
                   "    }}\n",
                 ),
                 node_name = system.node,
-                node_struct_name = node_struct_name,
+                node_t = node_t,
                 system_name = system.name,
               )?;
             }
@@ -356,20 +350,20 @@ impl<'a> Display for Impl<'a> {
 
     // Event emition:
     for event in self.data.events.values() {
-      let event_struct_name = EventStructName { name: event.name };
-      let event_queue = DynQueue::new(format!("struct {}", event_struct_name));
-      let event_queue_name = event_queue.get_name();
+      let event_t = EventStructName::new(event.name);
+      let event_queue = DynQueue::new(event_t.clone());
+      let event_queue_t = event_queue.get_type();
 
       write!(
         f,
         concat!(
-          "void vecs_emit_{event_name}(struct vecs_engine *e, struct {event_struct_name} ev) {{\n",
+          "void vecs_emit_{event_name}(vecs_engine_t *e, {event_t} ev) {{\n",
           "  {event_queue_method_enqueue}(&e->events_{event_name}, ev);\n",
           "}}\n",
         ),
         event_name = event.name,
-        event_struct_name = event_struct_name,
-        event_queue_method_enqueue = event_queue_name.method("enqueue"),
+        event_t = event_t,
+        event_queue_method_enqueue = method_name!(&event_queue_t, "enqueue"),
       )?;
     }
 

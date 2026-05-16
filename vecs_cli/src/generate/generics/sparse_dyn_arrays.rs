@@ -1,51 +1,55 @@
 use std::fmt::Display;
 
-use super::common::StructName;
+use crate::generate::generics::common::{method_name, whatever_name};
+
+use super::common::{GenericElement, StructName, Whatever, struct_name};
 use super::dyn_arrays::DynArray;
 
-pub struct SparseDynArray {
-  pub element_t: String,
+pub struct SparseDynArray<T: GenericElement> {
+  pub element_t: T,
 }
 
-impl SparseDynArray {
-  pub fn new(element_t: String) -> Self {
+impl<T: GenericElement> SparseDynArray<T> {
+  pub fn new(element_t: T) -> Self {
     Self { element_t }
   }
 
-  pub fn header<'a>(&'a self) -> SparseDynArrayHeader<'a> {
+  pub fn header<'a>(&'a self) -> SparseDynArrayHeader<'a, T> {
     SparseDynArrayHeader(self)
   }
 
-  pub fn imple<'a>(&'a self) -> SparseDynArrayImpl<'a> {
+  pub fn imple<'a>(&'a self) -> SparseDynArrayImpl<'a, T> {
     SparseDynArrayImpl(self)
   }
 
-  pub fn get_name<'a>(&'a self) -> StructName<'a> {
-    StructName::new("sparse_dyn_array", vec![self.element_t.as_str()])
+  pub fn get_type<'a>(&'a self) -> StructName<'a> {
+    struct_name!("sparse_dyn_array"; self.element_t)
+  }
+
+  pub fn get_whatever<'a>(&'a self) -> Whatever {
+    whatever_name!("sparse_dyn_array", self.element_t)
   }
 }
 
-pub struct SparseDynArrayHeader<'a>(&'a SparseDynArray);
-pub struct SparseDynArrayImpl<'a>(&'a SparseDynArray);
+pub struct SparseDynArrayHeader<'a, T: GenericElement>(&'a SparseDynArray<T>);
+pub struct SparseDynArrayImpl<'a, T: GenericElement>(&'a SparseDynArray<T>);
 
-impl<'a> Display for SparseDynArrayHeader<'a> {
+impl<'a, T: GenericElement> Display for SparseDynArrayHeader<'a, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let element_t = &self.0.element_t;
-    let struct_name = self.0.get_name();
-    let self_t = struct_name.get_type_name();
+    let self_t = self.0.get_type();
 
-    let element_dyn_arr_t =
-      DynArray::new(element_t.clone()).get_name().get_type_name();
+    let element_dyn_arr = DynArray::new(element_t.clone());
+    let element_dyn_arr_t = element_dyn_arr.get_type();
 
-    let uint32_t_dyn_arr_t = DynArray::new("uint32_t".to_string())
-      .get_name()
-      .get_type_name();
+    let uint32_t_dyn_arr_t = DynArray::new("uint32_t");
+    let uint32_t_dyn_arr_t = uint32_t_dyn_arr_t.get_type();
 
     write!(
       f,
       concat!(
         "// Sparse dynamic array of `{element_t}`.\n",
-        "struct {struct_name} {{\n",
+        "typedef struct {whatever} {{\n",
         "  {element_dyn_arr_t} items;\n",
         "  {uint32_t_dyn_arr_t} holes;\n",
         "\n",
@@ -56,7 +60,7 @@ impl<'a> Display for SparseDynArrayHeader<'a> {
         "  {uint32_t_dyn_arr_t} gens;\n",
         "\n",
         "  uint32_t len;\n",
-        "}};\n",
+        "}} {self_t};\n",
         "\n",
         "void {method_init}({self_t} *self, uint32_t cap);\n",
         "void {method_grow}({self_t} *self);\n",
@@ -68,36 +72,33 @@ impl<'a> Display for SparseDynArrayHeader<'a> {
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
-      struct_name = struct_name,
+      whatever = self.0.get_whatever(),
       element_t = element_t,
       element_dyn_arr_t = element_dyn_arr_t,
       uint32_t_dyn_arr_t = uint32_t_dyn_arr_t,
       self_t = self_t,
-      method_init = struct_name.method("init"),
-      method_grow = struct_name.method("grow"),
-      method_fit = struct_name.method("fit"),
-      method_get = struct_name.method("get"),
-      method_get_unchecked = struct_name.method("get_unchecked"),
-      method_push = struct_name.method("push"),
-      method_remove = struct_name.method("remove"),
-      method_destroy = struct_name.method("destroy"),
+      method_init = method_name!(&self_t, "init"),
+      method_grow = method_name!(&self_t, "grow"),
+      method_fit = method_name!(&self_t, "fit"),
+      method_get = method_name!(&self_t, "get"),
+      method_get_unchecked = method_name!(&self_t, "get_unchecked"),
+      method_push = method_name!(&self_t, "push"),
+      method_remove = method_name!(&self_t, "remove"),
+      method_destroy = method_name!(&self_t, "destroy"),
     )
   }
 }
 
-impl<'a> Display for SparseDynArrayImpl<'a> {
+impl<'a, T: GenericElement> Display for SparseDynArrayImpl<'a, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let element_t = &self.0.element_t;
-    let struct_name = self.0.get_name();
-    let self_t = struct_name.get_type_name();
+    let self_t = self.0.get_type();
 
     let element_dyn_arr = DynArray::new(element_t.clone());
-    let element_dyn_arr_name = element_dyn_arr.get_name();
+    let element_dyn_arr_t = element_dyn_arr.get_type();
 
-    let uint32_t = "uint32_t".to_string();
-    let uint32_t_dyn_arr = DynArray::new(uint32_t);
-    let uint32_t_dyn_arr_name = uint32_t_dyn_arr.get_name();
-    let uint32_t_dyn_arr_t = uint32_t_dyn_arr_name.get_type_name();
+    let uint32_t_dyn_arr = DynArray::new("uint32_t");
+    let uint32_t_dyn_arr_t = uint32_t_dyn_arr.get_type();
 
     write!(
       f,
@@ -189,28 +190,28 @@ impl<'a> Display for SparseDynArrayImpl<'a> {
         "\n",
       ),
       element_t = element_t,
-      element_method_init = element_dyn_arr_name.method("init"),
-      element_method_grow = element_dyn_arr_name.method("grow"),
-      element_method_fit = element_dyn_arr_name.method("fit"),
-      element_method_push = element_dyn_arr_name.method("push"),
-      element_method_pop = element_dyn_arr_name.method("pop"),
-      element_method_destroy = element_dyn_arr_name.method("destroy"),
+      element_method_init = method_name!(&element_dyn_arr_t, "init"),
+      element_method_grow = method_name!(&element_dyn_arr_t, "grow"),
+      element_method_fit = method_name!(&element_dyn_arr_t, "fit"),
+      element_method_push = method_name!(&element_dyn_arr_t, "push"),
+      element_method_pop = method_name!(&element_dyn_arr_t, "pop"),
+      element_method_destroy = method_name!(&element_dyn_arr_t, "destroy"),
       uint32_t_dyn_arr_t = uint32_t_dyn_arr_t,
-      uint32_t_method_init = uint32_t_dyn_arr_name.method("init"),
-      uint32_t_method_grow = uint32_t_dyn_arr_name.method("grow"),
-      uint32_t_method_fit = uint32_t_dyn_arr_name.method("fit"),
-      uint32_t_method_push = uint32_t_dyn_arr_name.method("push"),
-      uint32_t_method_pop = uint32_t_dyn_arr_name.method("pop"),
-      uint32_t_method_destroy = uint32_t_dyn_arr_name.method("destroy"),
+      uint32_t_method_init = method_name!(&uint32_t_dyn_arr_t, "init"),
+      uint32_t_method_grow = method_name!(&uint32_t_dyn_arr_t, "grow"),
+      uint32_t_method_fit = method_name!(&uint32_t_dyn_arr_t, "fit"),
+      uint32_t_method_push = method_name!(&uint32_t_dyn_arr_t, "push"),
+      uint32_t_method_pop = method_name!(&uint32_t_dyn_arr_t, "pop"),
+      uint32_t_method_destroy = method_name!(&uint32_t_dyn_arr_t, "destroy"),
       self_t = self_t,
-      method_init = struct_name.method("init"),
-      method_grow = struct_name.method("grow"),
-      method_fit = struct_name.method("fit"),
-      method_get = struct_name.method("get"),
-      method_get_unchecked = struct_name.method("get_unchecked"),
-      method_push = struct_name.method("push"),
-      method_remove = struct_name.method("remove"),
-      method_destroy = struct_name.method("destroy"),
+      method_init = method_name!(&self_t, "init"),
+      method_grow = method_name!(&self_t, "grow"),
+      method_fit = method_name!(&self_t, "fit"),
+      method_get = method_name!(&self_t, "get"),
+      method_get_unchecked = method_name!(&self_t, "get_unchecked"),
+      method_push = method_name!(&self_t, "push"),
+      method_remove = method_name!(&self_t, "remove"),
+      method_destroy = method_name!(&self_t, "destroy"),
     )
   }
 }

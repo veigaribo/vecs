@@ -1,48 +1,53 @@
 use std::fmt::Display;
 
-use super::common::StructName;
+use crate::generate::generics::common::{method_name, struct_name, whatever_name};
 
-pub struct DynQueue {
-  pub element_t: String,
+use super::common::{GenericElement, StructName, Whatever};
+
+pub struct DynQueue<T: GenericElement> {
+  pub element_t: T,
 }
 
-impl DynQueue {
-  pub fn new(element_t: String) -> Self {
+impl<T: GenericElement> DynQueue<T> {
+  pub fn new(element_t: T) -> Self {
     Self { element_t }
   }
 
-  pub fn header<'a>(&'a self) -> DynQueueHeader<'a> {
+  pub fn header<'a>(&'a self) -> DynQueueHeader<'a, T> {
     DynQueueHeader(self)
   }
 
-  pub fn imple<'a>(&'a self) -> DynQueueImpl<'a> {
+  pub fn imple<'a>(&'a self) -> DynQueueImpl<'a, T> {
     DynQueueImpl(self)
   }
 
-  pub fn get_name<'a>(&'a self) -> StructName<'a> {
-    StructName::new("dyn_queue", vec![self.element_t.as_str()])
+  pub fn get_type<'a>(&'a self) -> StructName<'a> {
+    struct_name!("dyn_queue"; self.element_t)
+  }
+
+  pub fn get_whatever<'a>(&'a self) -> Whatever {
+    whatever_name!("dyn_queue", self.element_t)
   }
 }
 
-pub struct DynQueueHeader<'a>(&'a DynQueue);
-pub struct DynQueueImpl<'a>(&'a DynQueue);
+pub struct DynQueueHeader<'a, T: GenericElement>(&'a DynQueue<T>);
+pub struct DynQueueImpl<'a, T: GenericElement>(&'a DynQueue<T>);
 
-impl<'a> Display for DynQueueHeader<'a> {
+impl<'a, T: GenericElement> Display for DynQueueHeader<'a, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let element_t = &self.0.element_t;
-    let struct_name = self.0.get_name();
-    let self_t = struct_name.get_type_name();
+    let self_t = self.0.get_type();
 
     write!(
       f,
       concat!(
         "// Dynamic queue of `{element_t}`.\n",
-        "struct {struct_name} {{\n",
+        "typedef struct {whatever} {{\n",
         "  {element_t} *items;\n",
         "  uint32_t len;\n",
         "  uint32_t cap;\n",
         "  uint32_t head;\n",
-        "}};\n",
+        "}} {self_t};\n",
         "\n",
         "void {method_init}({self_t} *self, uint32_t cap);\n",
         "void {method_grow}({self_t} *self);\n",
@@ -52,24 +57,23 @@ impl<'a> Display for DynQueueHeader<'a> {
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
-      struct_name = struct_name,
+      whatever = self.0.get_whatever(),
       element_t = element_t,
       self_t = self_t,
-      method_init = struct_name.method("init"),
-      method_grow = struct_name.method("grow"),
-      method_fit = struct_name.method("fit"),
-      method_enqueue = struct_name.method("enqueue"),
-      method_dequeue = struct_name.method("dequeue"),
-      method_destroy = struct_name.method("destroy"),
+      method_init = method_name!(&self_t, "init"),
+      method_grow = method_name!(&self_t, "grow"),
+      method_fit = method_name!(&self_t, "fit"),
+      method_enqueue = method_name!(&self_t, "enqueue"),
+      method_dequeue = method_name!(&self_t, "dequeue"),
+      method_destroy = method_name!(&self_t, "destroy"),
     )
   }
 }
 
-impl<'a> Display for DynQueueImpl<'a> {
+impl<'a, T: GenericElement> Display for DynQueueImpl<'a, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let element_t = &self.0.element_t;
-    let struct_name = self.0.get_name();
-    let self_t = struct_name.get_type_name();
+    let self_t = self.0.get_type();
 
     write!(
       f,
@@ -130,12 +134,12 @@ impl<'a> Display for DynQueueImpl<'a> {
       ),
       element_t = element_t,
       self_t = self_t,
-      method_init = struct_name.method("init"),
-      method_grow = struct_name.method("grow"),
-      method_fit = struct_name.method("fit"),
-      method_enqueue = struct_name.method("enqueue"),
-      method_dequeue = struct_name.method("dequeue"),
-      method_destroy = struct_name.method("destroy"),
+      method_init = method_name!(&self_t, "init"),
+      method_grow = method_name!(&self_t, "grow"),
+      method_fit = method_name!(&self_t, "fit"),
+      method_enqueue = method_name!(&self_t, "enqueue"),
+      method_dequeue = method_name!(&self_t, "dequeue"),
+      method_destroy = method_name!(&self_t, "destroy"),
     )
   }
 }

@@ -1,6 +1,7 @@
 #![allow(irrefutable_let_patterns)]
-#![feature(assert_matches)]
 #![feature(iter_intersperse)]
+#![feature(trait_alias)]
+#![feature(formatting_options)]
 
 mod cli;
 mod generate;

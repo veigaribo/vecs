@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["vecs_cli"]
+members = [ "derive_display_hash", "display_hash","vecs_cli"]
 
 [workspace.package]
 edition = "2024"

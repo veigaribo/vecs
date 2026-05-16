@@ -1,110 +1,140 @@
-use md5;
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
-fn mangle_generics(ctx: &mut md5::Context, generics: &[&str]) {
-  if generics.is_empty() {
-    return;
-  }
-
-  let mut iter = generics.iter();
-  let head = iter.next().unwrap();
-  ctx.consume(head);
-
-  for generic in iter {
-    ctx.consume(" ");
-    ctx.consume(generic);
-  }
+macro_rules! hash_internal {
+  ($hasher:ident) => {};
+  ($hasher:ident; $generic:expr) => {
+    std::hash::Hash::hash(&$generic, &mut $hasher);
+  };
+  ($hasher:ident; $generic:expr, $($rest:tt)*) => {
+    std::hash::Hash::hash(&$generic, &mut $hasher);
+    std::hash::Hash::hash(&0xFF, &mut $hasher);
+    crate::generate::generics::common::hash_internal!($hasher; $($rest)*);
+  };
 }
+
+pub(crate) use hash_internal;
 
 // Represents the name of a generic struct with name `name` parameterized on
 // `generics`. Names of methods may be constructed from it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct StructName<'a> {
-  name: &'a str,
-  generics: Vec<&'a str>,
-}
-
-impl<'a> StructName<'a> {
-  pub fn new(name: &'a str, generics: Vec<&'a str>) -> Self {
-    Self { name, generics }
-  }
-
-  // Prefixes the name with `struct`, so it can be used as a type name in C.
-  pub fn get_type_name(&self) -> String {
-    format!("struct {}", self)
-  }
-
-  pub fn gmethod(&'a self, name: &'a str, generics: Vec<&'a str>) -> MethodName<'a> {
-    MethodName {
-      strukt: self,
-      name,
-      generics,
-    }
-  }
-
-  // If you want generics, use `gmethod` instead (historical reasons).
-  pub fn method(&'a self, name: &'a str) -> MethodName<'a> {
-    self.gmethod(name, vec![])
-  }
+  pub name: &'a str,
+  pub hash: u64,
 }
 
 impl<'a> Display for StructName<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let mut md5_ctx = md5::Context::new();
-    mangle_generics(&mut md5_ctx, &self.generics);
-
-    let digest = md5_ctx.finalize();
-    write!(f, "_VECSs{:x}_{}{:x}", self.name.len(), self.name, digest)?;
-
-    Ok(())
+    write!(
+      f,
+      "_VECSs{:x}_{}{:016x}_t",
+      self.name.len(),
+      self.name,
+      self.hash,
+    )
   }
 }
 
-#[derive(Debug, Clone)]
+macro_rules! struct_name {
+  ($name:expr) => {{
+    crate::generate::generics::common::StructName { name: $name, hash: 0 }
+  }};
+  ($name:expr; $($tt:tt)*) => {{
+    let mut hasher = std::hash::DefaultHasher::new();
+    crate::generate::generics::common::hash_internal!(hasher; $($tt)*);
+    crate::generate::generics::common::StructName { name: $name, hash: std::hash::Hasher::finish(&hasher) }
+  }};
+}
+
+pub(crate) use struct_name;
+
+#[derive(Debug, Clone, Hash)]
 pub struct MethodName<'a> {
-  strukt: &'a StructName<'a>,
-  name: &'a str,
-  generics: Vec<&'a str>,
+  pub strukt: &'a StructName<'a>,
+  pub name: &'a str,
+  pub hash: u64,
 }
 
 impl<'a> Display for MethodName<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let mut md5_ctx = md5::Context::new();
-    mangle_generics(&mut md5_ctx, &self.generics);
-
-    let digest = md5_ctx.finalize();
     write!(
       f,
-      "{}_M{:x}_{}{:x}",
+      "{}_M{:x}_{}{:016x}",
       self.strukt,
       self.name.len(),
       self.name,
-      digest
-    )?;
-    Ok(())
+      self.hash,
+    )
   }
 }
 
-#[derive(Debug, Clone)]
+macro_rules! method_name {
+  ($parent:expr, $name:expr) => {{
+    crate::generate::generics::common::MethodName { strukt: $parent, name: $name, hash: 0 }
+  }};
+  ($parent:expr, $name:expr; $($tt:tt)*) => {{
+    let mut hasher = std::hash::DefaultHasher::new();
+    crate::generate::generics::common::hash_internal!(hasher; $($tt)*);
+    crate::generate::generics::common::MethodName { strukt: $parent, name: $name, hash: std::hash::Hasher::finish(&hasher) }
+  }};
+}
+
+pub(crate) use method_name;
+
+#[derive(Debug, Clone, Hash)]
 pub struct FunctionName<'a> {
-  name: &'a str,
-  generics: Vec<&'a str>,
+  pub name: &'a str,
+  pub hash: u64,
 }
 
 impl<'a> Display for FunctionName<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let mut md5_ctx = md5::Context::new();
-    mangle_generics(&mut md5_ctx, &self.generics);
-
-    let digest = md5_ctx.finalize();
-    write!(f, "_VECSf{:x}_{}{:x}", self.name.len(), self.name, digest)?;
-
-    Ok(())
+    write!(
+      f,
+      "_VECSf{:x}_{}{:016x}",
+      self.name.len(),
+      self.name,
+      self.hash
+    )
   }
 }
 
-impl<'a> FunctionName<'a> {
-  pub fn new(name: &'a str, generics: Vec<&'a str>) -> Self {
-    Self { name, generics }
+macro_rules! function_name {
+  ($name:expr) => {{
+    crate::generate::generics::common::FunctionName { name: $name, hash: 0 }
+  }};
+  ($name:expr; $($tt:tt)*) => {{
+    let mut hasher = std::hash::DefaultHasher::new();
+    crate::generate::generics::common::hash_internal!(hasher; $($tt)*);
+    crate::generate::generics::common::FunctionName { name: $name, hash: std::hash::Hasher::finish(&hasher) }
+  }};
+}
+
+pub(crate) use function_name;
+
+/// Used where something's name doesn't matter.
+/// Two Whatevers with equal hashes will format to equal strings.
+#[derive(Debug, Clone, Hash)]
+pub struct Whatever {
+  pub hash: u64,
+}
+
+impl Display for Whatever {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "_VECSw_{:x}", self.hash)
   }
 }
+
+macro_rules! whatever_name {
+  ($($tt:tt)*) => {{
+    let mut hasher = std::hash::DefaultHasher::new();
+    crate::generate::generics::common::hash_internal!(hasher; $($tt)*);
+    crate::generate::generics::common::Whatever { hash: std::hash::Hasher::finish(&hasher) }
+  }};
+}
+
+pub(crate) use whatever_name;
+
+// Clone for composing e.g. maybe A<T> requires B<T>;
+// Display generates the output;
+// Hash used for name mangling.
+pub trait GenericElement = Clone + Display + Hash;
