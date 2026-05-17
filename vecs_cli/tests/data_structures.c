@@ -207,3 +207,6 @@ void move(vecs_engine_t *engine, vecs_node_move_t node,
 
 void render(vecs_engine_t *engine, vecs_node_render_t node,
             vecs_event_frame_t event) {}
+
+void click(vecs_engine_t *engine, vecs_node_click_t node,
+            vecs_event_mouse_click_t event) {}

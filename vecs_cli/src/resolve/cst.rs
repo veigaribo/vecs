@@ -73,7 +73,7 @@ impl<'src> Component<'src> {
 
 // Nodes.
 
-#[derive(Debug, Clone, Builder, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Builder, Hash)]
 pub struct Node<'src> {
   pub span: Span<'src>,
 
@@ -85,6 +85,15 @@ pub struct Node<'src> {
   #[builder(default = vec![])]
   pub mask: Vec<u64>,
 }
+
+impl<'src> PartialEq for Node<'src> {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name
+  }
+}
+
+// We make sure there are no name conflicts.
+impl<'src> Eq for Node<'src> {}
 
 impl<'src> NodeBuilder<'src> {
   pub fn init_components(&mut self) {
@@ -115,7 +124,7 @@ pub struct System<'src> {
 
 // States.
 
-#[derive(Debug, Clone, Builder)]
+#[derive(Debug, Clone, Builder, Hash)]
 pub struct State<'src> {
   pub span: Span<'src>,
 
@@ -127,6 +136,15 @@ pub struct State<'src> {
   #[builder(field(vis = "pub"))]
   pub nodes: Vec<&'src str>,
 }
+
+impl<'src> PartialEq for State<'src> {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name
+  }
+}
+
+// We make sure there are no name conflicts.
+impl<'src> Eq for State<'src> {}
 
 // Settings.
 
@@ -213,5 +231,21 @@ impl<'src> Cst<'src> {
 
   pub fn add_state(&mut self, state: State<'src>) {
     self.states.insert(state.name, state);
+  }
+
+  // Explicit nodes + the ones implied by systems.
+  // TODO: Let's just make the nodes in a state contain also the nodes from the
+  // systems during construction, because this is something we need often, and it's
+  // better we don't compute (and allocate) it every time.
+  pub fn get_state_nodes(&self, state: &State<'src>) -> Vec<&Node<'src>> {
+    state
+      .nodes
+      .iter()
+      .map(|c| self.nodes.get(c).unwrap())
+      .chain(state.systems.iter().flatten().map(|s| {
+        let system = self.systems.get(s).unwrap();
+        self.nodes.get(system.node).unwrap()
+      }))
+      .collect::<Vec<_>>()
   }
 }

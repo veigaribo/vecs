@@ -177,11 +177,10 @@ impl<'a> Display for Header<'a> {
       concat!(
         "// Engine.\n",
         "typedef struct vecs_engine {{\n",
-        "  uint64_t enabled_components[{mask_size}];\n",
+        "  // Currently unused.\n",
         "  vecs_state_t state;\n",
         "  {entity_array_t} entities;\n",
       ),
-      mask_size = self.data.node_mask_arr_size,
       entity_array_t = entity_array_t,
     )?;
 
@@ -235,7 +234,7 @@ impl<'a> Display for Header<'a> {
         write!(
           f,
           concat!(
-            "static inline {component_t} *vecs_{node_name}_get_{component_name}(vecs_engine_t *e, {node_t} node) {{\n",
+            "static inline {component_t} *vecs_node_{node_name}_get_{component_name}(vecs_engine_t *e, {node_t} node) {{\n",
             "  return {component_array_method_get_unchecked}(&e->components_{component_name}, node.{component_name}_index);\n",
             "}}\n",
           ),
@@ -287,8 +286,40 @@ impl<'a> Display for Header<'a> {
       }
     }
 
-    // State loops:
+    // Node getters:
+    for node in self.data.nodes.values() {
+      let node_t = NodeStructName::new(node.name);
+      let dyn_arr = DynArray::new(node_t);
+      let dyn_arr_t = dyn_arr.get_type();
+
+      write!(
+        f,
+        "typedef {} vecs_node_{}_array_t;\n",
+        dyn_arr_t, node.name
+      )?;
+
+      write!(
+        f,
+        "vecs_node_{node_name}_array_t vecs_nodes_{node_name}(vecs_engine_t *e);\n",
+        node_name = node.name,
+      )?;
+    }
+
     for state in self.data.states.values() {
+      // State transitions:
+      for other_state in self.data.states.values() {
+        if state.name == other_state.name {
+          continue;
+        }
+
+        write!(
+          f,
+          "void vecs_state_{}_to_{}(vecs_engine_t *e);\n",
+          state.name, other_state.name,
+        )?;
+      }
+
+      // State loops:
       write!(
         f,
         "void vecs_run_state_{}(vecs_engine_t *e);\n\n",

@@ -26,5 +26,17 @@ state main {
     { render };
   };
 
-	nodes { something };
+  nodes { something };
+};
+
+component layout {
+  int mode;
+};
+
+system click on mouse_click { layout; render };
+
+state menu {
+  systems {
+    { move; click };
+  };
 };

@@ -188,6 +188,8 @@ impl<'a> Display for Impl<'a> {
             method_name!(&index_hash_array_t, "remove"),
         )?;
 
+        let relevant_nodes = self.data.get_state_nodes(state);
+
         // Disable components:
         write!(
           f,
@@ -200,10 +202,7 @@ impl<'a> Display for Impl<'a> {
           component_name = component_name,
         )?;
 
-        for system_name in state.systems.iter().flatten() {
-          let system = self.data.systems.get(system_name).unwrap();
-          let node = self.data.nodes.get(system.node).unwrap();
-
+        for node in relevant_nodes.iter() {
           if node.components.contains(component_name) {
             let node_t = NodeStructName::new(node.name);
             let node_mask_name = NodeMaskName::new(node.name);
@@ -249,18 +248,7 @@ impl<'a> Display for Impl<'a> {
           component_mask_name = component_mask_name,
         )?;
 
-        // Explicit nodes + the ones implied by systems.
-        let relevant_nodes = state
-          .nodes
-          .iter()
-          .map(|c| self.data.nodes.get(c).unwrap())
-          .chain(state.systems.iter().flatten().map(|s| {
-            let system = self.data.systems.get(s).unwrap();
-            self.data.nodes.get(system.node).unwrap()
-          }))
-          .collect::<Vec<_>>();
-
-        for node in relevant_nodes {
+        for node in relevant_nodes.iter() {
           if node.components.contains(component_name) {
             let node_t = NodeStructName::new(node.name);
             let node_mask_name = NodeMaskName::new(node.name);
@@ -310,8 +298,126 @@ impl<'a> Display for Impl<'a> {
       }
     }
 
-    // State loops:
+    // Node getters:
+    for node in self.data.nodes.values() {
+      write!(
+        f,
+        concat!(
+          "vecs_node_{node_name}_array_t vecs_nodes_{node_name}(vecs_engine_t *e) {{\n",
+          "  return e->nodes_{node_name};\n",
+          "}}\n",
+        ),
+        node_name = node.name,
+      )?;
+    }
+
     for state in self.data.states.values() {
+      // State transitions:
+      for other_state in self.data.states.values() {
+        if state.name == other_state.name {
+          continue;
+        }
+
+        write!(
+          f,
+          "void vecs_state_{}_to_{}(vecs_engine_t *e) {{\n",
+          state.name, other_state.name,
+        )?;
+
+        let old_relevant_nodes = self.data.get_state_nodes(state);
+        let new_relevant_nodes = self.data.get_state_nodes(other_state);
+
+        // Remove unnecessary nodes:
+        for old_relevant_node in old_relevant_nodes.iter() {
+          if !new_relevant_nodes.contains(old_relevant_node) {
+            let node_t = NodeStructName::new(old_relevant_node.name);
+            let node_array = DynArray::new(node_t);
+            let node_array_t = node_array.get_type();
+
+            write!(
+              f,
+              concat!("  {node_array_method_destroy}(&e->nodes_{node_name});\n",),
+              node_name = old_relevant_node.name,
+              node_array_method_destroy = method_name!(&node_array_t, "destroy"),
+            )?;
+          }
+        }
+
+        // If there is some new node to track
+        if new_relevant_nodes
+          .iter()
+          .any(|new| !old_relevant_nodes.contains(new))
+        {
+          // Add new necessary nodes:
+          write!(
+            f,
+            concat!(
+              "  for (uint32_t i = 0; i < e->entities.len; ++i) {{\n",
+              "    for (uint32_t j = 0; j < e->entities.holes.len; ++j) {{\n",
+              "      uint32_t hole = e->entities.holes.items[j];\n",
+              "      if (i == hole)\n",
+              "        goto continue_outer;\n",
+              "    }}\n",
+              "\n",
+              "    vecs_entity_t *ent = &e->entities.items.items[i];\n",
+              "    uint32_t gen = e->entities.gens.items[i];\n",
+              "    vecs_id_t entity = {{.index = i, .gen = gen}};\n",
+            ),
+          )?;
+
+          for new_relevant_node in new_relevant_nodes.iter() {
+            if !old_relevant_nodes.contains(new_relevant_node) {
+              let node_t = NodeStructName::new(new_relevant_node.name);
+              let node_mask_name = NodeMaskName::new(new_relevant_node.name);
+
+              write!(
+                f,
+                concat!(
+                  "    if (match_mask(ent->mask, {node_mask_name})) {{\n",
+                  "      uint32_t component_index;\n",
+                  "      {node_t} node;\n",
+                ),
+                node_t = node_t,
+                node_mask_name = node_mask_name,
+              )?;
+
+              for component in new_relevant_node.components.iter() {
+                write!(
+                  f,
+                  concat!(
+                    "      {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
+                    "      node.{component_name}_index = component_index;\n",
+                  ),
+                  component_name = component,
+                  entity_to_component_array_method_get =
+                    method_name!(&index_hash_array_t, "get"),
+                )?;
+              }
+
+              let node_array = DynArray::new(node_t);
+              let node_array_t = node_array.get_type();
+
+              write!(
+                f,
+                concat!(
+                  "      uint32_t node_index = {node_array_method_push}(&e->nodes_{node_name}, node);\n",
+                  "      {entity_to_node_method_add}(&e->entity_to_node_{node_name}, entity, node_index);\n",
+                  "    }}\n",
+                ),
+                node_name = new_relevant_node.name,
+                node_array_method_push = method_name!(&node_array_t, "push"),
+                entity_to_node_method_add = method_name!(&index_hash_array_t, "add"),
+              )?;
+            }
+          }
+
+          write!(f, concat!("continue_outer:\n", "    ;\n", "  }}\n",),)?;
+        }
+
+        write!(f, "}}\n",)?;
+      }
+
+      // State loops:
       write!(
         f,
         "void vecs_run_state_{}(vecs_engine_t *e) {{\n",
