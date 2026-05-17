@@ -146,6 +146,16 @@ impl<'src> PartialEq for State<'src> {
 // We make sure there are no name conflicts.
 impl<'src> Eq for State<'src> {}
 
+impl<'src> StateBuilder<'src> {
+  pub fn add_node(&mut self, node: &'src str) {
+    if let Some(ref mut nodes) = self.nodes {
+      nodes.push(node);
+    } else {
+      self.nodes = Some(vec![node]);
+    }
+  }
+}
+
 // Settings.
 
 // #[derive(Debug, Copy, Clone)]
@@ -231,21 +241,5 @@ impl<'src> Cst<'src> {
 
   pub fn add_state(&mut self, state: State<'src>) {
     self.states.insert(state.name, state);
-  }
-
-  // Explicit nodes + the ones implied by systems.
-  // TODO: Let's just make the nodes in a state contain also the nodes from the
-  // systems during construction, because this is something we need often, and it's
-  // better we don't compute (and allocate) it every time.
-  pub fn get_state_nodes(&self, state: &State<'src>) -> Vec<&Node<'src>> {
-    state
-      .nodes
-      .iter()
-      .map(|c| self.nodes.get(c).unwrap())
-      .chain(state.systems.iter().flatten().map(|s| {
-        let system = self.systems.get(s).unwrap();
-        self.nodes.get(system.node).unwrap()
-      }))
-      .collect::<Vec<_>>()
   }
 }

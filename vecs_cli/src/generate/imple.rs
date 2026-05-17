@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 use crate::resolve::cst::Cst;
 
@@ -188,8 +188,6 @@ impl<'a> Display for Impl<'a> {
             method_name!(&index_hash_array_t, "remove"),
         )?;
 
-        let relevant_nodes = self.data.get_state_nodes(state);
-
         // Disable components:
         write!(
           f,
@@ -202,7 +200,7 @@ impl<'a> Display for Impl<'a> {
           component_name = component_name,
         )?;
 
-        for node in relevant_nodes.iter() {
+        for node in state.nodes.iter().map(|n| self.data.nodes.get(n).unwrap()) {
           if node.components.contains(component_name) {
             let node_t = NodeStructName::new(node.name);
             let node_mask_name = NodeMaskName::new(node.name);
@@ -248,7 +246,7 @@ impl<'a> Display for Impl<'a> {
           component_mask_name = component_mask_name,
         )?;
 
-        for node in relevant_nodes.iter() {
+        for node in state.nodes.iter().map(|n| self.data.nodes.get(n).unwrap()) {
           if node.components.contains(component_name) {
             let node_t = NodeStructName::new(node.name);
             let node_mask_name = NodeMaskName::new(node.name);
@@ -324,31 +322,39 @@ impl<'a> Display for Impl<'a> {
           state.name, other_state.name,
         )?;
 
-        let old_relevant_nodes = self.data.get_state_nodes(state);
-        let new_relevant_nodes = self.data.get_state_nodes(other_state);
+        let old_relevant_nodes = state
+          .nodes
+          .iter()
+          .map(|n| self.data.nodes.get(n).unwrap())
+          .collect::<HashSet<_>>();
+
+        let new_relevant_nodes = other_state
+          .nodes
+          .iter()
+          .map(|n| self.data.nodes.get(n).unwrap())
+          .collect::<HashSet<_>>();
 
         // Remove unnecessary nodes:
-        for old_relevant_node in old_relevant_nodes.iter() {
-          if !new_relevant_nodes.contains(old_relevant_node) {
-            let node_t = NodeStructName::new(old_relevant_node.name);
-            let node_array = DynArray::new(node_t);
-            let node_array_t = node_array.get_type();
+        for old_relevant_node in old_relevant_nodes.difference(&new_relevant_nodes) {
+          let node_t = NodeStructName::new(old_relevant_node.name);
+          let node_array = DynArray::new(node_t);
+          let node_array_t = node_array.get_type();
 
-            write!(
-              f,
-              concat!("  {node_array_method_destroy}(&e->nodes_{node_name});\n",),
-              node_name = old_relevant_node.name,
-              node_array_method_destroy = method_name!(&node_array_t, "destroy"),
-            )?;
-          }
+          write!(
+            f,
+            concat!("  {node_array_method_destroy}(&e->nodes_{node_name});\n",),
+            node_name = old_relevant_node.name,
+            node_array_method_destroy = method_name!(&node_array_t, "destroy"),
+          )?;
         }
 
+        // Add new necessary nodes:
+        let mut new_nodes = new_relevant_nodes
+          .difference(&old_relevant_nodes)
+          .peekable();
+
         // If there is some new node to track
-        if new_relevant_nodes
-          .iter()
-          .any(|new| !old_relevant_nodes.contains(new))
-        {
-          // Add new necessary nodes:
+        if new_nodes.peek().is_some() {
           write!(
             f,
             concat!(
@@ -365,50 +371,48 @@ impl<'a> Display for Impl<'a> {
             ),
           )?;
 
-          for new_relevant_node in new_relevant_nodes.iter() {
-            if !old_relevant_nodes.contains(new_relevant_node) {
-              let node_t = NodeStructName::new(new_relevant_node.name);
-              let node_mask_name = NodeMaskName::new(new_relevant_node.name);
+          for new_relevant_node in new_nodes {
+            let node_t = NodeStructName::new(new_relevant_node.name);
+            let node_mask_name = NodeMaskName::new(new_relevant_node.name);
 
+            write!(
+              f,
+              concat!(
+                "    if (match_mask(ent->mask, {node_mask_name})) {{\n",
+                "      uint32_t component_index;\n",
+                "      {node_t} node;\n",
+              ),
+              node_t = node_t,
+              node_mask_name = node_mask_name,
+            )?;
+
+            for component in new_relevant_node.components.iter() {
               write!(
                 f,
                 concat!(
-                  "    if (match_mask(ent->mask, {node_mask_name})) {{\n",
-                  "      uint32_t component_index;\n",
-                  "      {node_t} node;\n",
+                  "      {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
+                  "      node.{component_name}_index = component_index;\n",
                 ),
-                node_t = node_t,
-                node_mask_name = node_mask_name,
-              )?;
-
-              for component in new_relevant_node.components.iter() {
-                write!(
-                  f,
-                  concat!(
-                    "      {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
-                    "      node.{component_name}_index = component_index;\n",
-                  ),
-                  component_name = component,
-                  entity_to_component_array_method_get =
-                    method_name!(&index_hash_array_t, "get"),
-                )?;
-              }
-
-              let node_array = DynArray::new(node_t);
-              let node_array_t = node_array.get_type();
-
-              write!(
-                f,
-                concat!(
-                  "      uint32_t node_index = {node_array_method_push}(&e->nodes_{node_name}, node);\n",
-                  "      {entity_to_node_method_add}(&e->entity_to_node_{node_name}, entity, node_index);\n",
-                  "    }}\n",
-                ),
-                node_name = new_relevant_node.name,
-                node_array_method_push = method_name!(&node_array_t, "push"),
-                entity_to_node_method_add = method_name!(&index_hash_array_t, "add"),
+                component_name = component,
+                entity_to_component_array_method_get =
+                  method_name!(&index_hash_array_t, "get"),
               )?;
             }
+
+            let node_array = DynArray::new(node_t);
+            let node_array_t = node_array.get_type();
+
+            write!(
+              f,
+              concat!(
+                "      uint32_t node_index = {node_array_method_push}(&e->nodes_{node_name}, node);\n",
+                "      {entity_to_node_method_add}(&e->entity_to_node_{node_name}, entity, node_index);\n",
+                "    }}\n",
+              ),
+              node_name = new_relevant_node.name,
+              node_array_method_push = method_name!(&node_array_t, "push"),
+              entity_to_node_method_add = method_name!(&index_hash_array_t, "add"),
+            )?;
           }
 
           write!(f, concat!("continue_outer:\n", "    ;\n", "  }}\n",),)?;

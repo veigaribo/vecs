@@ -46,6 +46,9 @@ pub fn resolve_state<'src>(
 
     let maybe_value = cdr.get(1);
 
+    let mut got_nodes = false;
+    let mut got_systems = false;
+
     if let Some(value) = maybe_value {
       if let ValueKind::List(ref values) = value.kind {
         for value in values {
@@ -53,26 +56,37 @@ pub fn resolve_state<'src>(
             let car = &values[0];
             let cdr = &values[1..];
 
-            if car.kind == ValueKind::Symbol("systems") {
-              if s.systems.is_some() {
-                return Err(ResolveError::new(
-                  meta.span,
-                  "duplicated state systems. expected only one",
-                ));
-              }
-
-              let systems = resolve_state_systems(meta, cdr)?;
-              s.systems(systems);
-            } else if car.kind == ValueKind::Symbol("nodes") {
-              if s.nodes.is_some() {
+            if car.kind == ValueKind::Symbol("nodes") {
+              if got_nodes {
                 return Err(ResolveError::new(
                   meta.span,
                   "duplicated state nodes. expected only one",
                 ));
               }
 
+              got_nodes = true;
               let nodes = resolve_state_nodes(meta, cdr)?;
-              s.nodes(nodes);
+
+              for node in nodes {
+                s.add_node(node);
+              }
+            } else if car.kind == ValueKind::Symbol("systems") {
+              if got_systems {
+                return Err(ResolveError::new(
+                  meta.span,
+                  "duplicated state systems. expected only one",
+                ));
+              }
+
+              got_systems = true;
+              let systems = resolve_state_systems(meta, cdr)?;
+
+              // Add system nodes
+              for system in systems.iter().flatten() {
+                s.add_node(system);
+              }
+
+              s.systems(systems);
             } else {
               return Err(ResolveError::new(
                 car.span,
