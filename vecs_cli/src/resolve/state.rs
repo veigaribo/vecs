@@ -1,10 +1,8 @@
-use std::{collections::HashMap, slice};
-
 use crate::resolve::{
-  cst::{State, StateBuilder, StateComponent, StateComponentBuilder},
+  ResolveMeta,
+  cst::{State, StateBuilder},
   result::{ResolveError, ResolveResult},
   values::{Value, ValueKind},
-  ResolveMeta,
 };
 
 pub fn resolve_state<'src>(
@@ -13,9 +11,31 @@ pub fn resolve_state<'src>(
 ) -> ResolveResult<'src, State<'src>> {
   let mut s = StateBuilder::default();
   let maybe_value = cdr.get(0);
+  s.span(meta.span);
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
+      if name.eq_ignore_ascii_case("NONE") {
+        return Err(ResolveError::new(
+          value.span,
+          format!(
+            "a state named 'none' is always generated, and thus the name is reserved. if still want that state, please name it something else"
+          ),
+        ));
+      }
+
+      if meta.cst.states.contains_key(name) {
+        let previous = meta.cst.states.get(name).unwrap();
+
+        return Err(ResolveError::new(
+          value.span,
+          format!(
+            "duplicated state name '{}'. previously defined at {}",
+            name, previous.span
+          ),
+        ));
+      }
+
       s.name(name);
     } else {
       return Err(ResolveError::new(
@@ -33,17 +53,7 @@ pub fn resolve_state<'src>(
             let car = &values[0];
             let cdr = &values[1..];
 
-            if car.kind == ValueKind::Symbol("components") {
-              if s.components.is_some() {
-                return Err(ResolveError::new(
-                  meta.span,
-                  "duplicated state components. expected only one",
-                ));
-              }
-
-              let components = resolve_state_components(meta, cdr)?;
-              s.components(components);
-            } else if car.kind == ValueKind::Symbol("systems") {
+            if car.kind == ValueKind::Symbol("systems") {
               if s.systems.is_some() {
                 return Err(ResolveError::new(
                   meta.span,
@@ -53,10 +63,20 @@ pub fn resolve_state<'src>(
 
               let systems = resolve_state_systems(meta, cdr)?;
               s.systems(systems);
+            } else if car.kind == ValueKind::Symbol("nodes") {
+              if s.nodes.is_some() {
+                return Err(ResolveError::new(
+                  meta.span,
+                  "duplicated state nodes. expected only one",
+                ));
+              }
+
+              let nodes = resolve_state_nodes(meta, cdr)?;
+              s.nodes(nodes);
             } else {
               return Err(ResolveError::new(
                 car.span,
-                format!("expected `components` or `systems`. instead found {}", car),
+                format!("expected `nodes` or `systems`. instead found {}", car),
               ));
             }
           } else {
@@ -82,15 +102,12 @@ pub fn resolve_state<'src>(
     ));
   }
 
-  if s.components.is_none() {
-    return Err(ResolveError::new(
-      meta.span,
-      "state is missing its components",
-    ));
-  }
-
   if s.systems.is_none() {
     return Err(ResolveError::new(meta.span, "state is missing its systems"));
+  }
+
+  if s.nodes.is_none() {
+    s.nodes(vec![]);
   }
 
   Ok(s.build().expect(&format!(
@@ -99,96 +116,39 @@ pub fn resolve_state<'src>(
   )))
 }
 
-fn resolve_state_components<'src>(
+fn resolve_state_nodes<'src>(
   meta: ResolveMeta<'src, '_, '_>,
   cdr: &[Value<'src>],
-) -> ResolveResult<'src, Vec<StateComponent<'src>>> {
-  let mut ss = Vec::<StateComponent<'src>>::new();
+) -> ResolveResult<'src, Vec<&'src str>> {
+  let mut ss = Vec::<&'src str>::new();
   let maybe_value = cdr.get(0);
 
   if let Some(value) = maybe_value {
     if let ValueKind::List(ref values) = value.kind {
       for value in values {
-        let mut s = StateComponentBuilder::default();
-
         if let ValueKind::Application(ref values) = value.kind {
           let maybe_value = values.get(0);
 
           if let Some(value) = maybe_value {
             if let ValueKind::Symbol(name) = value.kind {
-              if meta.cst.components.contains_key(name) {
-                s.name(name);
+              if meta.cst.nodes.contains_key(name) {
+                ss.push(name);
               } else {
                 return Err(ResolveError::new(
                   value.span,
-                  format!("component `{}` not found", name),
+                  format!("node `{}` not found", name),
                 ));
               }
             } else {
               return Err(ResolveError::new(
                 value.span,
-                format!(
-                  "state component name must be a symbol. instead found {}",
-                  value,
-                ),
+                format!("state node name must be a symbol. instead found {}", value,),
               ));
-            }
-
-            let maybe_value = values.get(1);
-
-            if let Some(value) = maybe_value {
-              let mut opts = resolve_options(meta.clone(), slice::from_ref(value))?;
-              let maybe_value = opts.remove("max");
-
-              if let Some(value) = maybe_value {
-                if let ValueKind::Integer(max) = value.kind {
-                  let as_u64: u64 = TryInto::<u64>::try_into(max).map_err(|_| {
-                    ResolveError::new(
-                      value.span,
-                      format!("could not convert component max count ({}) to a 64-bit unsigned integer. expected to be able to.", max),
-                    )
-                  })?;
-
-                  s.max(Some(as_u64));
-                } else {
-                  return Err(ResolveError::new(
-                    value.span,
-                    format!(
-                      "max component count must be an integer. instead found {}",
-                      value,
-                    ),
-                  ));
-                }
-              } else {
-                s.max(None);
-              }
-
-              if !opts.is_empty() {
-                let unknown_keys = opts
-                  .keys()
-                  .map(|key| *key)
-                  .intersperse(", ")
-                  .collect::<String>();
-
-                return Err(ResolveError::new(
-                  value.span,
-                  format!("unknown component options: {}", unknown_keys),
-                ));
-              }
-
-              if let Some(value) = values.get(2) {
-                return Err(ResolveError::new(
-                  value.span,
-                  format!("unexpected value {}", value),
-                ));
-              }
-            } else {
-              s.max(None);
             }
           } else {
             return Err(ResolveError::new(
               value.span,
-              "components entry should start with the component name",
+              "node entry should start with the component name",
             ));
           }
         } else {
@@ -197,17 +157,12 @@ fn resolve_state_components<'src>(
             meta.ast,
           );
         }
-
-        ss.push(s.build().expect(&format!(
-          "failed to build state components. this is a bug.\n{}",
-          meta.ast
-        )));
       }
     } else {
       return Err(ResolveError::new(
         value.span,
         format!(
-          "components must be followed by the list of components. instead found {}",
+          "nodes must be followed by the list of nodes. instead found {}",
           value,
         ),
       ));
@@ -215,7 +170,7 @@ fn resolve_state_components<'src>(
   } else {
     return Err(ResolveError::new(
       meta.span,
-      "components must be followed by the list of components",
+      "nodes must be followed by the list of nodes",
     ));
   }
 
@@ -316,73 +271,73 @@ fn resolve_state_systems<'src>(
   Ok(ss)
 }
 
-fn resolve_options<'src, 'b>(
-  meta: ResolveMeta<'src, '_, '_>,
-  args: &'b [Value<'src>],
-) -> ResolveResult<'src, HashMap<&'src str, &'b Value<'src>>> {
-  let mut opts = HashMap::new();
-  let arg1 = args.get(0);
-
-  if let Some(arg1) = arg1 {
-    if let ValueKind::List(ref inner) = arg1.kind {
-      for app in inner {
-        if let ValueKind::Application(ref inner) = app.kind {
-          let arg1 = inner.get(0);
-
-          let name: &'src str;
-
-          if let Some(arg1) = arg1 {
-            if let ValueKind::Symbol(content) = arg1.kind {
-              name = content;
-            } else {
-              return Err(ResolveError::new(
-                arg1.span,
-                format!("option name must be a symbol. instead found {}", arg1,),
-              ));
-            }
-
-            let arg2 = inner.get(1);
-
-            if let Some(arg2) = arg2 {
-              opts.insert(name, arg2);
-            } else {
-              return Err(ResolveError::new(
-                app.span,
-                "option name should be followed by its value",
-              ));
-            }
-          } else {
-            return Err(ResolveError::new(
-              app.span,
-              "option entry should start with its name",
-            ));
-          }
-        } else {
-          panic!(
-            "malformed ast: root expression is not an application. this is a bug.\n{}",
-            meta.ast,
-          );
-        }
-      }
-    } else {
-      if let ValueKind::Symbol(_) = arg1.kind {
-        return Err(ResolveError::new(
-          arg1.span,
-          format!(
-            "expected options but found {} instead. maybe you forgot a semicolon?",
-            arg1,
-          ),
-        ));
-      }
-
-      return Err(ResolveError::new(
-        arg1.span,
-        format!("options must be a list. instead found {}", arg1,),
-      ));
-    }
-  } else {
-    return Err(ResolveError::new(meta.span, "options must be a list"));
-  }
-
-  Ok(opts)
-}
+// fn resolve_options<'src, 'b>(
+//   meta: ResolveMeta<'src, '_, '_>,
+//   args: &'b [Value<'src>],
+// ) -> ResolveResult<'src, HashMap<&'src str, &'b Value<'src>>> {
+//   let mut opts = HashMap::new();
+//   let arg1 = args.get(0);
+//
+//   if let Some(arg1) = arg1 {
+//     if let ValueKind::List(ref inner) = arg1.kind {
+//       for app in inner {
+//         if let ValueKind::Application(ref inner) = app.kind {
+//           let arg1 = inner.get(0);
+//
+//           let name: &'src str;
+//
+//           if let Some(arg1) = arg1 {
+//             if let ValueKind::Symbol(content) = arg1.kind {
+//               name = content;
+//             } else {
+//               return Err(ResolveError::new(
+//                 arg1.span,
+//                 format!("option name must be a symbol. instead found {}", arg1,),
+//               ));
+//             }
+//
+//             let arg2 = inner.get(1);
+//
+//             if let Some(arg2) = arg2 {
+//               opts.insert(name, arg2);
+//             } else {
+//               return Err(ResolveError::new(
+//                 app.span,
+//                 "option name should be followed by its value",
+//               ));
+//             }
+//           } else {
+//             return Err(ResolveError::new(
+//               app.span,
+//               "option entry should start with its name",
+//             ));
+//           }
+//         } else {
+//           panic!(
+//             "malformed ast: root expression is not an application. this is a bug.\n{}",
+//             meta.ast,
+//           );
+//         }
+//       }
+//     } else {
+//       if let ValueKind::Symbol(_) = arg1.kind {
+//         return Err(ResolveError::new(
+//           arg1.span,
+//           format!(
+//             "expected options but found {} instead. maybe you forgot a semicolon?",
+//             arg1,
+//           ),
+//         ));
+//       }
+//
+//       return Err(ResolveError::new(
+//         arg1.span,
+//         format!("options must be a list. instead found {}", arg1,),
+//       ));
+//     }
+//   } else {
+//     return Err(ResolveError::new(meta.span, "options must be a list"));
+//   }
+//
+//   Ok(opts)
+// }

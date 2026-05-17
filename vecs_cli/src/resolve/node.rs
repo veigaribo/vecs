@@ -1,8 +1,8 @@
 use crate::resolve::{
+  ResolveMeta,
   cst::{Node, NodeBuilder},
   result::{ResolveError, ResolveResult},
   values::{Value, ValueKind},
-  ResolveMeta,
 };
 
 pub fn resolve_node<'src>(
@@ -11,9 +11,22 @@ pub fn resolve_node<'src>(
 ) -> ResolveResult<'src, Node<'src>> {
   let mut n = NodeBuilder::default();
   let maybe_value = cdr.get(0);
+  n.span(meta.span);
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
+      if meta.cst.nodes.contains_key(name) {
+        let previous = meta.cst.nodes.get(name).unwrap();
+
+        return Err(ResolveError::new(
+          value.span,
+          format!(
+            "duplicated node name '{}'. previously defined at {} (systems generate corresponding nodes)",
+            name, previous.span
+          ),
+        ));
+      }
+
       n.name(name);
     } else {
       return Err(ResolveError::new(

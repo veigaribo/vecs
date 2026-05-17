@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
 pub struct Location<'src> {
   pub file: Option<&'src str>,
   pub byte_offset: usize,
@@ -42,7 +42,7 @@ impl<'src> std::fmt::Display for Location<'src> {
   }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
 pub struct Span<'src> {
   pub file: Option<&'src str>,
   pub start_byte_offset: usize,

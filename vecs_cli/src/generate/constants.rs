@@ -17,7 +17,7 @@ impl<'a> ComponentMaskName<'a> {
 
 impl<'a> Display for ComponentMaskName<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "vecs_component_{}_mask", self.name)
+    write!(f, "VECS_COMPONENT_{}_MASK", self.name.to_ascii_uppercase())
   }
 }
 
@@ -34,7 +34,7 @@ impl<'a> NodeMaskName<'a> {
 
 impl<'a> Display for NodeMaskName<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "vecs_node_{}_mask", self.name)
+    write!(f, "VECS_NODE_{}_MASK", self.name.to_ascii_uppercase())
   }
 }
 
@@ -112,6 +112,23 @@ impl Display for NodeMask {
 
     write!(f, "}}")?;
     Ok(())
+  }
+}
+
+#[derive(Debug, Clone, DisplayHash)]
+pub struct StateIdName<'a> {
+  pub name: &'a str,
+}
+
+impl<'a> StateIdName<'a> {
+  pub fn new(name: &'a str) -> Self {
+    Self { name }
+  }
+}
+
+impl<'a> Display for StateIdName<'a> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "VECS_STATE_{}", self.name.to_ascii_uppercase())
   }
 }
 

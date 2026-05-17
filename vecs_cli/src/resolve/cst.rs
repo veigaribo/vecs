@@ -2,6 +2,8 @@ use std::collections::{BTreeSet, HashMap};
 
 use derive_builder::Builder;
 
+use crate::parse::data::str::Span;
+
 // CST means "concrete semantic tree".
 // Maybe you wouldn't consider this a tree but I think `css` would be too confusing.
 
@@ -16,6 +18,8 @@ pub struct StructField<'src> {
 
 #[derive(Debug, Clone, Builder)]
 pub struct Struct<'src> {
+  pub span: Span<'src>,
+
   pub name: &'src str,
   pub fields: Vec<StructField<'src>>,
 }
@@ -49,6 +53,8 @@ impl<'src> StructBuilder<'src> {
 
 #[derive(Debug, Clone, Builder)]
 pub struct Component<'src> {
+  pub span: Span<'src>,
+
   pub strukt: Struct<'src>,
   // mask[i] & (1 << j)
   pub mask_i: u16,
@@ -69,6 +75,8 @@ impl<'src> Component<'src> {
 
 #[derive(Debug, Clone, Builder, PartialEq, Eq, Hash)]
 pub struct Node<'src> {
+  pub span: Span<'src>,
+
   pub name: &'src str,
   pub components: BTreeSet<&'src str>,
 
@@ -98,6 +106,8 @@ impl<'src> NodeBuilder<'src> {
 
 #[derive(Debug, Clone, Builder)]
 pub struct System<'src> {
+  pub span: Span<'src>,
+
   pub name: &'src str,
   pub event: &'src str,
   pub node: &'src str,
@@ -106,49 +116,41 @@ pub struct System<'src> {
 // States.
 
 #[derive(Debug, Clone, Builder)]
-pub struct StateComponent<'src> {
-  pub name: &'src str,
-  pub max: Option<u64>,
-}
-
-#[derive(Debug, Clone, Builder)]
 pub struct State<'src> {
-  pub name: &'src str,
+  pub span: Span<'src>,
 
-  #[builder(field(vis = "pub"))]
-  pub components: Vec<StateComponent<'src>>,
+  pub name: &'src str,
 
   #[builder(field(vis = "pub"))]
   pub systems: Vec<Vec<&'src str>>,
+
+  #[builder(field(vis = "pub"))]
+  pub nodes: Vec<&'src str>,
 }
 
 // Settings.
 
-#[derive(Debug, Copy, Clone)]
-pub struct Settings {
-  pub default_component_max: u64,
-}
+// #[derive(Debug, Copy, Clone)]
+// pub struct Settings {}
 
-impl Default for Settings {
-  fn default() -> Self {
-    Self {
-      default_component_max: 200,
-    }
-  }
-}
+// impl Default for Settings {
+//   fn default() -> Self {
+//     Self {}
+//   }
+// }
 
 // CST. See the top comment for what it means.
 
 #[derive(Debug, Clone, Default)]
 pub struct Cst<'src> {
-  pub settings: Settings,
+  // pub settings: Settings,
   pub components: HashMap<&'src str, Component<'src>>,
   pub events: HashMap<&'src str, Struct<'src>>,
   pub systems: HashMap<&'src str, System<'src>>,
   pub nodes: HashMap<&'src str, Node<'src>>,
   pub node_mask_arr_size: u16,
 
-  pub states: Vec<State<'src>>,
+  pub states: HashMap<&'src str, State<'src>>,
 }
 
 // These methods do not check for errors (e.g. a non-existant component in a node or
@@ -174,6 +176,7 @@ impl<'src> Cst<'src> {
     let mask_j: u8 = (index % 64).try_into().unwrap();
 
     let component = Component {
+      span: strukt.span,
       strukt,
       mask_i,
       mask_j,
@@ -209,6 +212,6 @@ impl<'src> Cst<'src> {
   }
 
   pub fn add_state(&mut self, state: State<'src>) {
-    self.states.push(state);
+    self.states.insert(state.name, state);
   }
 }

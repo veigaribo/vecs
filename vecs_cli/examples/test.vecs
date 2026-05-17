@@ -18,14 +18,13 @@ event mouse_click {
 system move on mouse_click { transform };
 system render { transform; render };
 
-state main {
-  components {
-    transform;
-    render;
-  };
+node something { render };
 
+state main {
   systems {
     { move };
     { render };
   };
+
+	nodes { something };
 };

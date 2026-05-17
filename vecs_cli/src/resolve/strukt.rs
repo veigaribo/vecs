@@ -1,19 +1,28 @@
-use crate::resolve::{
-  cst::{Struct, StructBuilder, StructFieldBuilder},
-  result::{ResolveError, ResolveResult},
-  values::{Value, ValueKind},
-  ResolveMeta,
+use crate::{
+  parse::data::str::Span,
+  resolve::{
+    ResolveMeta,
+    cst::{Struct, StructBuilder, StructFieldBuilder},
+    result::{ResolveError, ResolveResult},
+    values::{Value, ValueKind},
+  },
 };
 
-pub fn resolve_struct<'src>(
+pub fn resolve_struct<
+  'src,
+  F: Fn(&'src str, Span<'src>) -> ResolveResult<'src, ()>,
+>(
   meta: ResolveMeta<'src, '_, '_>,
   cdr: &[Value<'src>],
+  validate_name: F,
 ) -> ResolveResult<'src, Struct<'src>> {
   let mut s = StructBuilder::default();
   let maybe_value = cdr.get(0);
+  s.span(meta.span);
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
+      validate_name(name, value.span)?;
       s.name(name);
     } else {
       return Err(ResolveError::new(

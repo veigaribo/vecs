@@ -39,23 +39,6 @@ impl<'a> Display for ComponentStructName<'a> {
 }
 
 #[derive(Debug, Clone, DisplayHash)]
-pub struct StateStructName<'a> {
-  pub state_name: &'a str,
-}
-
-impl<'a> StateStructName<'a> {
-  pub fn new(name: &'a str) -> Self {
-    Self { state_name: name }
-  }
-}
-
-impl<'a> Display for StateStructName<'a> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "vecs_state_{}_t", self.state_name)
-  }
-}
-
-#[derive(Debug, Clone, DisplayHash)]
 pub struct NodeStructName<'a> {
   pub node_name: &'a str,
 }

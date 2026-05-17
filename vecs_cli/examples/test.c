@@ -3,8 +3,7 @@
 
 void move(vecs_engine_t *engine, vecs_node_move_t node,
           vecs_event_mouse_click_t event) {
-  vecs_component_transform_t *t =
-      vecs_state_main_node_move_get_transform(engine, node);
+  vecs_component_transform_t *t = vecs_move_get_transform(engine, node);
 
   printf(".x: %f, .y: %f, .btn: %d, .x: %f, .y: %f\n", event.x, event.y,
          event.button, t->x, t->y);
@@ -12,10 +11,8 @@ void move(vecs_engine_t *engine, vecs_node_move_t node,
 
 void render(vecs_engine_t *engine, vecs_node_render_t node,
             vecs_event_frame_t event) {
-  vecs_component_transform_t *t =
-      vecs_state_main_node_render_get_transform(engine, node);
-  vecs_component_render_t *r =
-      vecs_state_main_node_render_get_render(engine, node);
+  vecs_component_transform_t *t = vecs_render_get_transform(engine, node);
+  vecs_component_render_t *r = vecs_render_get_render(engine, node);
 
   printf(
       ".delta: %f, .runtime: %f, .frame: %lu, .x: %f, .y: %f, .texture: %d\n",

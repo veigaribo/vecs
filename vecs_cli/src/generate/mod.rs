@@ -2,7 +2,7 @@ mod common;
 mod generics;
 mod header;
 mod imple;
-mod masks;
+mod constants;
 
 use std::io;
 

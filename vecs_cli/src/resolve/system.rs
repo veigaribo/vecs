@@ -14,9 +14,35 @@ pub fn resolve_system<'src>(
   let mut s = SystemBuilder::default();
   let mut n = NodeBuilder::default();
   let maybe_value = cdr.get(0);
+  s.span(meta.span);
+  n.span(meta.span);
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
+      if meta.cst.systems.contains_key(name) {
+        let previous = meta.cst.systems.get(name).unwrap();
+
+        return Err(ResolveError::new(
+          value.span,
+          format!(
+            "duplicated system name '{}'. previously defined at {}",
+            name, previous.span
+          ),
+        ));
+      }
+
+      if meta.cst.nodes.contains_key(name) {
+        let previous = meta.cst.nodes.get(name).unwrap();
+
+        return Err(ResolveError::new(
+          value.span,
+          format!(
+            "system name conflicts with a node: '{}', previously defined at {} (systems generate a corresponding node with the same name)",
+            name, previous.span
+          ),
+        ));
+      }
+
       s.name(name);
       n.name(name);
       s.node(name);

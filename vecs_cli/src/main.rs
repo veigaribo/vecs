@@ -1,5 +1,4 @@
 #![allow(irrefutable_let_patterns)]
-#![feature(iter_intersperse)]
 #![feature(trait_alias)]
 #![feature(formatting_options)]
 

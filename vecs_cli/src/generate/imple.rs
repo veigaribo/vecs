@@ -4,6 +4,7 @@ use crate::resolve::cst::Cst;
 
 use super::{
   common::{ComponentStructName, EventStructName, NodeStructName},
+  constants::{ComponentMaskName, NodeMaskName},
   generics::{
     common::{function_name, method_name},
     dyn_arrays::DynArray,
@@ -11,7 +12,6 @@ use super::{
     hash_dyn_arrays::HashDynArray,
     sparse_dyn_arrays::SparseDynArray,
   },
-  masks::{ComponentMaskName, NodeMaskName},
 };
 
 pub struct Impl<'a> {
@@ -132,10 +132,11 @@ impl<'a> Display for Impl<'a> {
       mask_size = self.data.node_mask_arr_size,
     )?;
 
-    for state in self.data.states.iter() {
-      for component in state.components.iter() {
-        let component_t = ComponentStructName::new(component.name);
-        let component_mask_name = ComponentMaskName::new(component.name);
+    for component in self.data.components.values() {
+      for state in self.data.states.values() {
+        let component_name = component.name();
+        let component_t = ComponentStructName::new(component_name);
+        let component_mask_name = ComponentMaskName::new(component_name);
 
         let entity_array = SparseDynArray::new("vecs_entity_t");
         let entity_array_name = entity_array.get_type();
@@ -149,15 +150,15 @@ impl<'a> Display for Impl<'a> {
           concat!(
             "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
             "  vecs_id_t component_id;\n",
-            "  {component_array_method_push}(&e->state.{state_name}.{component_name}, component, &component_id.index, &component_id.gen);\n",
-            "  {entity_to_component_array_method_add}(&e->state.{state_name}.entity_to_component_{component_name}, entity, component_id.index);\n",
+            "  {component_array_method_push}(&e->components_{component_name}, component, &component_id.index, &component_id.gen);\n",
+            "  {entity_to_component_array_method_add}(&e->entity_to_component_{component_name}, entity, component_id.index);\n",
             "\n",
             "  vecs_{state_name}_enable_component_{component_name}(e, entity);\n",
             "  return component_id;\n",
             "}}\n",
           ),
           state_name = state.name,
-          component_name = component.name,
+          component_name = component_name,
           component_t = component_t,
           component_array_method_push = method_name!(&component_array_name, "push"),
           entity_to_component_array_method_add =
@@ -172,15 +173,15 @@ impl<'a> Display for Impl<'a> {
             "  vecs_{state_name}_disable_component_{component_name}(e, entity);\n",
             "\n",
             "  vecs_id_t component_id;\n",
-            "  bool found = {entity_to_component_array_method_remove}(&e->state.{state_name}.entity_to_component_{component_name}, entity, &component_id.index);\n",
+            "  bool found = {entity_to_component_array_method_remove}(&e->entity_to_component_{component_name}, entity, &component_id.index);\n",
             "  if (!found)\n",
             "    return false;\n",
-            "  {component_array_method_remove}(&e->state.{state_name}.{component_name}, component_id.index);\n",
+            "  {component_array_method_remove}(&e->components_{component_name}, component_id.index);\n",
             "  return true;\n",
             "}}\n",
           ),
           state_name = state.name,
-          component_name = component.name,
+          component_name = component_name,
           component_array_method_remove =
             method_name!(&component_array_name, "remove"),
           entity_to_component_array_method_remove =
@@ -196,11 +197,14 @@ impl<'a> Display for Impl<'a> {
           ),
           state_name = state.name,
           entity_array_method_get = method_name!(&entity_array_name, "get"),
-          component_name = component.name,
+          component_name = component_name,
         )?;
 
-        for node in self.data.nodes.values() {
-          if node.components.contains(component.name) {
+        for system_name in state.systems.iter().flatten() {
+          let system = self.data.systems.get(system_name).unwrap();
+          let node = self.data.nodes.get(system.node).unwrap();
+
+          if node.components.contains(component_name) {
             let node_t = NodeStructName::new(node.name);
             let node_mask_name = NodeMaskName::new(node.name);
 
@@ -241,12 +245,23 @@ impl<'a> Display for Impl<'a> {
           ),
           state_name = state.name,
           entity_array_method_get = method_name!(&entity_array_name, "get"),
-          component_name = component.name,
+          component_name = component_name,
           component_mask_name = component_mask_name,
         )?;
 
-        for node in self.data.nodes.values() {
-          if node.components.contains(component.name) {
+        // Explicit nodes + the ones implied by systems.
+        let relevant_nodes = state
+          .nodes
+          .iter()
+          .map(|c| self.data.nodes.get(c).unwrap())
+          .chain(state.systems.iter().flatten().map(|s| {
+            let system = self.data.systems.get(s).unwrap();
+            self.data.nodes.get(system.node).unwrap()
+          }))
+          .collect::<Vec<_>>();
+
+        for node in relevant_nodes {
+          if node.components.contains(component_name) {
             let node_t = NodeStructName::new(node.name);
             let node_mask_name = NodeMaskName::new(node.name);
 
@@ -265,11 +280,10 @@ impl<'a> Display for Impl<'a> {
               write!(
                 f,
                 concat!(
-                  "    {entity_to_component_array_method_get}(&e->state.{state_name}.entity_to_component_{component_name}, entity, &component_index);\n",
+                  "    {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
                   "    node.{component_name}_index = component_index;\n",
                 ),
                 component_name = node_component,
-                state_name = state.name,
                 entity_to_component_array_method_get =
                   method_name!(&index_hash_array_t, "get"),
               )?;
@@ -294,8 +308,10 @@ impl<'a> Display for Impl<'a> {
 
         write!(f, concat!("}}\n",),)?;
       }
+    }
 
-      // State loops:
+    // State loops:
+    for state in self.data.states.values() {
       write!(
         f,
         "void vecs_run_state_{}(vecs_engine_t *e) {{\n",

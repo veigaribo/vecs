@@ -1,4 +1,6 @@
+pub mod component;
 pub mod cst;
+pub mod event;
 pub mod node;
 pub mod result;
 pub mod setting;
@@ -14,10 +16,11 @@ use setting::resolve_setting;
 use crate::{
   parse::{ast::Ast, data::str::Span},
   resolve::{
+    component::resolve_component,
     cst::Cst,
+    event::resolve_event,
     result::{ResolveError, ResolveResult},
     state::resolve_state,
-    strukt::resolve_struct,
     system::resolve_system,
     values::{ValueKind, VarTable},
   },
@@ -38,6 +41,7 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
 
   // The default `frame` event.
   cst.add_event(cst::Struct {
+    span: Span::default(),
     name: "frame",
     fields: vec![
       StructField {
@@ -78,10 +82,10 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
       let cdr = &els[1..];
 
       if car.kind == ValueKind::Symbol("component") {
-        let component = resolve_struct(info, cdr)?;
+        let component = resolve_component(info, cdr)?;
         cst.add_component(component);
       } else if car.kind == ValueKind::Symbol("event") {
-        let event = resolve_struct(info, cdr)?;
+        let event = resolve_event(info, cdr)?;
         cst.add_event(event);
       } else if car.kind == ValueKind::Symbol("node") {
         let node = resolve_node(info, cdr)?;
