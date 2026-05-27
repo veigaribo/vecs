@@ -83,7 +83,11 @@ impl<'a, T: GenericElement> Display for DynArrayImpl<'a, T> {
       concat!(
         "// Dynamic array of `{element_t}`.\n",
         "void {method_init}({self_t} *self, uint32_t cap) {{\n",
-        "  self->items = malloc(cap * sizeof({element_t}));\n",
+        "  if (cap > 0) {{\n",
+        "    self->items = malloc(cap * sizeof({element_t}));\n",
+        "  }} else {{\n",
+        "    self->items = NULL;\n",
+        "  }}\n",
         "  self->len = 0;\n",
         "  self->cap = cap;\n",
         "}}\n",

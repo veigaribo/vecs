@@ -1,6 +1,9 @@
 use std::{collections::HashSet, fmt::Display};
 
-use crate::resolve::cst::Cst;
+use crate::{
+  generate::generics::skip_lists::{SkipList, SkipListImplInit},
+  resolve::cst::Cst,
+};
 
 use super::{
   common::{ComponentStructName, EventStructName, NodeStructName},
@@ -9,7 +12,6 @@ use super::{
     common::{function_name, method_name},
     dyn_arrays::DynArray,
     dyn_queue::DynQueue,
-    hash_dyn_arrays::HashDynArray,
     sparse_dyn_arrays::SparseDynArray,
   },
 };
@@ -32,27 +34,20 @@ impl<'a> Display for Impl<'a> {
       DynQueue::new(event_t).imple().fmt(f)?;
     }
 
-    let id_hash_fn_name = function_name!("hash"; "vecs_id_t");
+    // Skip list of vecs_id_t:
+
+    let max_key_fn_name = function_name!("max"; "vecs_id_t");
 
     write!(
       f,
       concat!(
         "// http://www.cse.yorku.ca/~oz/hash.html\n",
-        "static inline uint32_t {hash_fn_name}(vecs_id_t key) {{\n",
-        "  uint32_t hash = 5381;\n",
-        "  /* hash * 33 + c */\n",
-        "  for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i += 8) {{\n",
-        "    uint32_t c = (key.index >> i) & 0xff;\n",
-        "    hash = ((hash << 5) + hash) + c;\n",
-        "  }}\n",
-        "  for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i += 8) {{\n",
-        "    uint32_t c = (key.gen >> i) & 0xff;\n",
-        "    hash = ((hash << 5) + hash) + c;\n",
-        "  }}\n",
-        "  return hash;\n",
+        "static inline vecs_id_t {max_key_fn_name}() {{\n",
+        "  vecs_id_t id = {{.index = UINT32_MAX, .gen = UINT32_MAX}};\n",
+        "  return id;\n",
         "}}\n",
       ),
-      hash_fn_name = id_hash_fn_name,
+      max_key_fn_name = max_key_fn_name,
     )?;
 
     let id_eq_fn_name = function_name!("eq"; "vecs_id_t");
@@ -68,10 +63,28 @@ impl<'a> Display for Impl<'a> {
       eq_fn_name = id_eq_fn_name,
     )?;
 
-    let index_hash_array = HashDynArray::new("vecs_id_t", "uint32_t");
+    let id_cmp_fn_name = function_name!("cmp"; "vecs_id_t");
 
-    let index_hash_array_t = index_hash_array.get_type();
-    index_hash_array.imple().fmt(f)?;
+    write!(
+      f,
+      concat!(
+        "// http://www.cse.yorku.ca/~oz/hash.html\n",
+        "static inline int8_t {cmp_fn_name}(vecs_id_t a, vecs_id_t b) {{\n",
+        "  uint64_t a64 = ((uint64_t) a.index << 32) | a.gen;\n",
+        "  uint64_t b64 = ((uint64_t) b.index << 32) | b.gen;\n",
+        "  return a64 < b64 ? -1 : 1;\n",
+        "}}\n",
+      ),
+      cmp_fn_name = id_cmp_fn_name,
+    )?;
+
+    let index_index = SkipList::new("vecs_id_t", "uint32_t");
+    let index_index_t = index_index.get_type();
+
+    SkipListImplInit {}.fmt(f)?;
+    index_index.imple().fmt(f)?;
+
+    // Arrays:
 
     for component in self.data.components.values() {
       let component_name = component.name();
@@ -97,6 +110,66 @@ impl<'a> Display for Impl<'a> {
     write!(
       f,
       concat!(
+        "void vecs_init(vecs_engine_t *e) {{\n",
+        "  e->state = VECS_STATE_NONE;\n",
+        "  {entity_array_method_init}(&e->entities, 0);\n",
+      ),
+      entity_array_method_init = method_name!(&entity_array_t, "init"),
+    )?;
+
+    for component in self.data.components.values() {
+      let component_name = component.name();
+      let component_t = ComponentStructName::new(component_name);
+
+      let dyn_array = SparseDynArray::new(component_t.clone());
+      let dyn_array_t = dyn_array.get_type();
+
+      write!(
+        f,
+        concat!(
+          "  {component_array_method_init}(&e->components_{component_name}, 0);\n",
+          "  {index_index_method_init}(&e->entity_to_component_{component_name});\n",
+        ),
+        component_name = component_name,
+        component_array_method_init = method_name!(&dyn_array_t, "init"),
+        index_index_method_init = method_name!(&index_index_t, "init"),
+      )?;
+    }
+
+    for node in self.data.nodes.values() {
+      let node_t = NodeStructName::new(node.name);
+      let dyn_array = DynArray::new(node_t);
+      let dyn_array_t = dyn_array.get_type();
+
+      write!(
+        f,
+        concat!(
+          "  {node_array_method_init}(&e->nodes_{node_name}, 0);\n",
+          "  {index_index_method_init}(&e->entity_to_node_{node_name});\n",
+        ),
+        node_name = node.name,
+        node_array_method_init = method_name!(&dyn_array_t, "init"),
+        index_index_method_init = method_name!(&index_index_t, "init"),
+      )?;
+    }
+
+    for event in self.data.events.values() {
+      let event_t = EventStructName::new(event.name);
+      let dyn_queue = DynQueue::new(event_t);
+      let dyn_queue_t = dyn_queue.get_type();
+
+      write!(
+        f,
+        concat!("{event_queue_method_init}(&e->events_{event_name}, 0);\n"),
+        event_name = event.name,
+        event_queue_method_init = method_name!(&dyn_queue_t, "init"),
+      )?;
+    }
+
+    write!(
+      f,
+      concat!(
+        "}}\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e) {{\n",
         "  vecs_entity_t ent = {{0}};\n",
         "  vecs_id_t id;\n",
@@ -161,8 +234,7 @@ impl<'a> Display for Impl<'a> {
           component_name = component_name,
           component_t = component_t,
           component_array_method_push = method_name!(&component_array_name, "push"),
-          entity_to_component_array_method_add =
-            method_name!(&index_hash_array_t, "add"),
+          entity_to_component_array_method_add = method_name!(&index_index_t, "add"),
         )?;
 
         // Remove components:
@@ -185,7 +257,7 @@ impl<'a> Display for Impl<'a> {
           component_array_method_remove =
             method_name!(&component_array_name, "remove"),
           entity_to_component_array_method_remove =
-            method_name!(&index_hash_array_t, "remove"),
+            method_name!(&index_index_t, "remove"),
         )?;
 
         // Disable components:
@@ -220,8 +292,7 @@ impl<'a> Display for Impl<'a> {
               node_mask_name = node_mask_name,
               node_name = node.name,
               node_array_method_remove = method_name!(&node_array_t, "swap_remove"),
-              entity_to_node_method_remove =
-                method_name!(&index_hash_array_t, "remove"),
+              entity_to_node_method_remove = method_name!(&index_index_t, "remove"),
             )?;
           }
         }
@@ -271,7 +342,7 @@ impl<'a> Display for Impl<'a> {
                 ),
                 component_name = node_component,
                 entity_to_component_array_method_get =
-                  method_name!(&index_hash_array_t, "get"),
+                  method_name!(&index_index_t, "get"),
               )?;
             }
 
@@ -287,7 +358,7 @@ impl<'a> Display for Impl<'a> {
               ),
               node_name = node.name,
               node_array_method_push = method_name!(&node_array_t, "push"),
-              entity_to_node_method_add = method_name!(&index_hash_array_t, "add"),
+              entity_to_node_method_add = method_name!(&index_index_t, "add"),
             )?;
           }
         }
@@ -395,7 +466,7 @@ impl<'a> Display for Impl<'a> {
                 ),
                 component_name = component,
                 entity_to_component_array_method_get =
-                  method_name!(&index_hash_array_t, "get"),
+                  method_name!(&index_index_t, "get"),
               )?;
             }
 
@@ -411,7 +482,7 @@ impl<'a> Display for Impl<'a> {
               ),
               node_name = new_relevant_node.name,
               node_array_method_push = method_name!(&node_array_t, "push"),
-              entity_to_node_method_add = method_name!(&index_hash_array_t, "add"),
+              entity_to_node_method_add = method_name!(&index_index_t, "add"),
             )?;
           }
 

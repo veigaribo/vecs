@@ -137,21 +137,21 @@ void test_sparse_dyn_array() {
   vecs_sparse_dyn_array_render_destroy(&arr);
 }
 
-// Hash dyn arrays:
+// Skip lists:
 
-#define vecs_hash_dyn_array_id_pair_t                                          \
-  _VECSs12_hash_dyn_array_aux37f1b91012c3886a_t
-#define vecs_hash_dyn_array_id_t _VECSse_hash_dyn_array37f1b91012c3886a_t
-#define vecs_hash_dyn_array_id_init                                            \
-  _VECSse_hash_dyn_array37f1b91012c3886a_t_M4_init0000000000000000
-#define vecs_hash_dyn_array_id_add                                             \
-  _VECSse_hash_dyn_array37f1b91012c3886a_t_M3_add0000000000000000
-#define vecs_hash_dyn_array_id_get                                             \
-  _VECSse_hash_dyn_array37f1b91012c3886a_t_M3_get0000000000000000
-#define vecs_hash_dyn_array_id_remove                                          \
-  _VECSse_hash_dyn_array37f1b91012c3886a_t_M6_remove0000000000000000
-#define vecs_hash_dyn_array_id_destroy                                         \
-  _VECSse_hash_dyn_array37f1b91012c3886a_t_M7_destroy0000000000000000
+#define vecs_skip_list_id_entry_t                                          \
+  _VECSsf_skip_list_entry37f1b91012c3886a_t
+#define vecs_skip_list_id_t _VECSs9_skip_list37f1b91012c3886a_t
+#define vecs_skip_list_id_init                                            \
+  _VECSs9_skip_list37f1b91012c3886a_t_M4_init0000000000000000
+#define vecs_skip_list_id_add                                             \
+  _VECSs9_skip_list37f1b91012c3886a_t_M3_add0000000000000000
+#define vecs_skip_list_id_get                                             \
+  _VECSs9_skip_list37f1b91012c3886a_t_M3_get0000000000000000
+#define vecs_skip_list_id_remove                                          \
+  _VECSs9_skip_list37f1b91012c3886a_t_M6_remove0000000000000000
+#define vecs_skip_list_id_destroy                                         \
+  _VECSs9_skip_list37f1b91012c3886a_t_M7_destroy0000000000000000
 
 void test_hash_dyn_array() {
   vecs_id_t c[] = {
@@ -159,23 +159,23 @@ void test_hash_dyn_array() {
       {.index = 3, .gen = 1}, {.index = 4, .gen = 0},
   };
 
-  vecs_hash_dyn_array_id_t map;
-  vecs_hash_dyn_array_id_init(&map);
-  printf("#r: %d\n", map.len);
+  vecs_skip_list_id_t map;
+  vecs_skip_list_id_init(&map);
+  printf("height: %d\n", map.height);
 
   uint32_t rc2, rc5;
-  vecs_hash_dyn_array_id_add(&map, c[0], 0);
-  vecs_hash_dyn_array_id_add(&map, c[1], 1);
-  vecs_hash_dyn_array_id_add(&map, c[2], 2);
-  vecs_hash_dyn_array_id_remove(&map, c[1], &rc2);
-  vecs_hash_dyn_array_id_add(&map, c[3], 3);
-  vecs_hash_dyn_array_id_add(&map, c[4], 4);
-  vecs_hash_dyn_array_id_remove(&map, c[4], &rc5);
-  printf("#r: %d\n", map.len);
+  vecs_skip_list_id_add(&map, c[0], 0);
+  vecs_skip_list_id_add(&map, c[1], 1);
+  vecs_skip_list_id_add(&map, c[2], 2);
+  vecs_skip_list_id_remove(&map, c[1], &rc2);
+  vecs_skip_list_id_add(&map, c[3], 3);
+  vecs_skip_list_id_add(&map, c[4], 4);
+  vecs_skip_list_id_remove(&map, c[4], &rc5);
+  printf("height: %d\n", map.height);
 
   for (size_t i = 0; i < 5; ++i) {
     uint32_t v;
-    bool found = vecs_hash_dyn_array_id_get(&map, c[i], &v);
+    bool found = vecs_skip_list_id_get(&map, c[i], &v);
 
     if (found) {
       printf("{%zu}. v: %d\n", i, v);
@@ -184,8 +184,8 @@ void test_hash_dyn_array() {
     }
   }
 
-  printf("#r: %d\n", map.len);
-  vecs_hash_dyn_array_id_destroy(&map);
+  printf("height: %d\n", map.height);
+  vecs_skip_list_id_destroy(&map);
 }
 
 int main() {

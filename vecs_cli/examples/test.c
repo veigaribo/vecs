@@ -38,7 +38,8 @@ void click(vecs_engine_t *engine, vecs_node_click_t node,
 }
 
 int main() {
-  vecs_engine_t e = {0};
+  vecs_engine_t e;
+  vecs_init(&e);
 
   vecs_id_t ent1 = vecs_add_entity(&e);
 

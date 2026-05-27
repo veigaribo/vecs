@@ -80,7 +80,11 @@ impl<'a, T: GenericElement> Display for DynQueueImpl<'a, T> {
       concat!(
         "// Dynamic queue of `{element_t}`.\n",
         "void {method_init}({self_t} *self, uint32_t cap) {{\n",
-        "  self->items = malloc(cap * sizeof({element_t}));\n",
+        "  if (cap > 0) {{\n",
+        "    self->items = malloc(cap * sizeof({element_t}));\n",
+        "  }} else {{\n",
+        "    self->items = NULL;\n",
+        "  }}\n",
         "  self->len = 0;\n",
         "  self->cap = cap;\n",
         "  self->head = 0;\n",

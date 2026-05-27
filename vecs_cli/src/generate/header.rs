@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::resolve::cst::Cst;
+use crate::{generate::generics::skip_lists::SkipList, resolve::cst::Cst};
 
 use super::{
   common::{ComponentStructName, EventStructName, NodeStructName},
@@ -11,7 +11,6 @@ use super::{
     common::{method_name, whatever_name},
     dyn_arrays::DynArray,
     dyn_queue::DynQueue,
-    hash_dyn_arrays::HashDynArray,
     sparse_dyn_arrays::SparseDynArray,
   },
 };
@@ -75,10 +74,10 @@ impl<'a> Display for Header<'a> {
     )?;
 
     // Used to access things from other things faster (index):
-    let index_hash_array = HashDynArray::new("vecs_id_t", "uint32_t");
+    let index_index = SkipList::new("vecs_id_t", "uint32_t");
 
-    let index_hash_array_t = index_hash_array.get_type();
-    index_hash_array.header().fmt(f)?;
+    let index_index_t = index_index.get_type();
+    index_index.header().fmt(f)?;
 
     for component in self.data.components.values() {
       // Component struct:
@@ -195,21 +194,17 @@ impl<'a> Display for Header<'a> {
       write!(
         f,
         "  {} entity_to_component_{};\n",
-        index_hash_array_t, component_name,
+        index_index_t, component_name,
       )?;
     }
 
     for node in self.data.nodes.values() {
       let node_t = NodeStructName::new(node.name);
-      let dyn_arr = DynArray::new(node_t);
-      let dyn_arr_t = dyn_arr.get_type();
+      let dyn_array = DynArray::new(node_t);
+      let dyn_array_t = dyn_array.get_type();
 
-      write!(f, "  {} nodes_{};\n", dyn_arr_t, node.name)?;
-      write!(
-        f,
-        "  {} entity_to_node_{};\n",
-        index_hash_array_t, node.name,
-      )?;
+      write!(f, "  {} nodes_{};\n", dyn_array_t, node.name)?;
+      write!(f, "  {} entity_to_node_{};\n", index_index_t, node.name,)?;
     }
 
     for event in self.data.events.values() {
@@ -263,7 +258,13 @@ impl<'a> Display for Header<'a> {
 
     // Engine methods:
 
-    write!(f, "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n",)?;
+    write!(
+      f,
+      concat!(
+        "void vecs_init(vecs_engine_t *e);\n",
+        "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n"
+      ),
+    )?;
 
     // Component manipulation:
     for component in self.data.components.values() {
