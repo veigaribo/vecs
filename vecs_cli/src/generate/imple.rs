@@ -28,6 +28,8 @@ impl<'a> Display for Impl<'a> {
     write!(f, "#include \"{}\"\n\n", self.header_name)?;
 
     DynArray::new("uint32_t").imple().fmt(f)?;
+    DynArray::new("uint64_t").imple().fmt(f)?;
+    DynQueue::new("uint32_t").imple().fmt(f)?;
 
     for event in self.data.events.values() {
       let event_t = EventStructName::new(event.name);
@@ -248,14 +250,16 @@ impl<'a> Display for Impl<'a> {
             "  bool found = {entity_to_component_array_method_remove}(&e->entity_to_component_{component_name}, entity, &component_id.index);\n",
             "  if (!found)\n",
             "    return false;\n",
-            "  {component_array_method_remove}(&e->components_{component_name}, component_id.index);\n",
+            "  {component_t} component;\n",
+            "  {component_array_method_remove_unchecked}(&e->components_{component_name}, component_id.index, &component);\n",
             "  return true;\n",
             "}}\n",
           ),
           state_name = state.name,
           component_name = component_name,
-          component_array_method_remove =
-            method_name!(&component_array_name, "remove"),
+          component_t = component_t,
+          component_array_method_remove_unchecked =
+            method_name!(&component_array_name, "remove_unchecked"),
           entity_to_component_array_method_remove =
             method_name!(&index_index_t, "remove"),
         )?;
@@ -430,16 +434,15 @@ impl<'a> Display for Impl<'a> {
             f,
             concat!(
               "  for (uint32_t i = 0; i < e->entities.len; ++i) {{\n",
-              "    for (uint32_t j = 0; j < e->entities.holes.len; ++j) {{\n",
-              "      uint32_t hole = e->entities.holes.items[j];\n",
-              "      if (i == hole)\n",
-              "        goto continue_outer;\n",
+              "    if ({entity_method_is_hole}(&e->entities, i)) {{\n",
+              "      goto continue_outer;\n",
               "    }}\n",
               "\n",
               "    vecs_entity_t *ent = &e->entities.items.items[i];\n",
               "    uint32_t gen = e->entities.gens.items[i];\n",
               "    vecs_id_t entity = {{.index = i, .gen = gen}};\n",
             ),
+            entity_method_is_hole = method_name!(&entity_array_t, "is_hole"),
           )?;
 
           for new_relevant_node in new_nodes {

@@ -36,6 +36,8 @@ impl<'a> Display for Header<'a> {
 
     // Used in every SparseDynArray.
     DynArray::new("uint32_t").header().fmt(f)?;
+    DynArray::new("uint64_t").header().fmt(f)?;
+    DynQueue::new("uint32_t").header().fmt(f)?;
 
     for event in self.data.events.values() {
       // Event struct:
