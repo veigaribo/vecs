@@ -89,4 +89,6 @@ int main() {
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
   vecs_run_state_main(&e);
+
+  vecs_destroy(&e);
 }

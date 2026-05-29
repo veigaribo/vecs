@@ -172,6 +172,66 @@ impl<'a> Display for Impl<'a> {
       f,
       concat!(
         "}}\n",
+        "void vecs_destroy(vecs_engine_t *e) {{\n",
+        "  e->state = VECS_STATE_NONE;\n",
+        "  {entity_array_method_destroy}(&e->entities);\n",
+      ),
+      entity_array_method_destroy = method_name!(&entity_array_t, "destroy"),
+    )?;
+
+    for component in self.data.components.values() {
+      let component_name = component.name();
+      let component_t = ComponentStructName::new(component_name);
+
+      let dyn_array = SparseDynArray::new(component_t.clone());
+      let dyn_array_t = dyn_array.get_type();
+
+      write!(
+        f,
+        concat!(
+          "  {component_array_method_destroy}(&e->components_{component_name});\n",
+          "  {index_index_method_destroy}(&e->entity_to_component_{component_name});\n",
+        ),
+        component_name = component_name,
+        component_array_method_destroy = method_name!(&dyn_array_t, "destroy"),
+        index_index_method_destroy = method_name!(&index_index_t, "destroy"),
+      )?;
+    }
+
+    for node in self.data.nodes.values() {
+      let node_t = NodeStructName::new(node.name);
+      let dyn_array = DynArray::new(node_t);
+      let dyn_array_t = dyn_array.get_type();
+
+      write!(
+        f,
+        concat!(
+          "  {node_array_method_destroy}(&e->nodes_{node_name});\n",
+          "  {index_index_method_destroy}(&e->entity_to_node_{node_name});\n",
+        ),
+        node_name = node.name,
+        node_array_method_destroy = method_name!(&dyn_array_t, "destroy"),
+        index_index_method_destroy = method_name!(&index_index_t, "destroy"),
+      )?;
+    }
+
+    for event in self.data.events.values() {
+      let event_t = EventStructName::new(event.name);
+      let dyn_queue = DynQueue::new(event_t);
+      let dyn_queue_t = dyn_queue.get_type();
+
+      write!(
+        f,
+        concat!("{event_queue_method_destroy}(&e->events_{event_name});\n"),
+        event_name = event.name,
+        event_queue_method_destroy = method_name!(&dyn_queue_t, "destroy"),
+      )?;
+    }
+
+    write!(
+      f,
+      concat!(
+        "}}\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e) {{\n",
         "  vecs_entity_t ent = {{0}};\n",
         "  vecs_id_t id;\n",

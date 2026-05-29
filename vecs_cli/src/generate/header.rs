@@ -264,6 +264,7 @@ impl<'a> Display for Header<'a> {
       f,
       concat!(
         "void vecs_init(vecs_engine_t *e);\n",
+        "void vecs_destroy(vecs_engine_t *e);\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n"
       ),
     )?;
