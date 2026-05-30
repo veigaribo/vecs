@@ -278,6 +278,7 @@ impl<'a> Display for Header<'a> {
         write!(
           f,
           concat!(
+            "bool vecs_has_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
             "bool vecs_{state_name}_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "void vecs_{state_name}_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",

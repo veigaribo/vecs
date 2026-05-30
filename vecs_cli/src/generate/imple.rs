@@ -268,17 +268,31 @@ impl<'a> Display for Impl<'a> {
     )?;
 
     for component in self.data.components.values() {
+      let component_name = component.name();
+      let component_t = ComponentStructName::new(component_name);
+      let component_mask_name = ComponentMaskName::new(component_name);
+
+      let entity_array = SparseDynArray::new("vecs_entity_t");
+      let entity_array_name = entity_array.get_type();
+
+      let component_array = SparseDynArray::new(component_t.clone());
+      let component_array_name = component_array.get_type();
+
+      // Has component:
+      write!(
+        f,
+        concat!(
+          "bool vecs_has_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
+          "  vecs_entity_t *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
+          "  return match_mask(ent->mask, {component_mask_name});\n",
+          "}}\n",
+        ),
+        component_name = component_name,
+        entity_array_method_get = method_name!(&entity_array_name, "get"),
+        component_mask_name = component_mask_name,
+      )?;
+
       for state in self.data.states.values() {
-        let component_name = component.name();
-        let component_t = ComponentStructName::new(component_name);
-        let component_mask_name = ComponentMaskName::new(component_name);
-
-        let entity_array = SparseDynArray::new("vecs_entity_t");
-        let entity_array_name = entity_array.get_type();
-
-        let component_array = SparseDynArray::new(component_t.clone());
-        let component_array_name = component_array.get_type();
-
         // Add components:
         write!(
           f,

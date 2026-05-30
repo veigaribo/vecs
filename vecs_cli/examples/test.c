@@ -43,11 +43,15 @@ int main() {
 
   vecs_id_t ent1 = vecs_add_entity(&e);
 
+  printf("1 has transform %d; ", vecs_has_component_transform(&e, ent1));
   vecs_component_transform_t t1 = {.x = 1.5, .y = 3.0};
   vecs_main_add_component_transform(&e, ent1, t1);
+  printf("2 has transform %d; ", vecs_has_component_transform(&e, ent1));
 
   vecs_main_disable_component_transform(&e, ent1);
+  printf("3 has transform %d; ", vecs_has_component_transform(&e, ent1));
   vecs_main_enable_component_transform(&e, ent1);
+  printf("4 has transform %d; ", vecs_has_component_transform(&e, ent1));
 
   vecs_component_render_t r1 = {.texture = 6};
   vecs_main_add_component_render(&e, ent1, r1);
