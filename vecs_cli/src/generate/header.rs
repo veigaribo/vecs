@@ -34,6 +34,11 @@ impl<'a> Display for Header<'a> {
       )
     )?;
 
+    for include in self.data.includes.iter() {
+      write!(f, "#include {}\n", include)?;
+    }
+    write!(f, "\n")?;
+
     // Used in every SparseDynArray.
     DynArray::new("uint32_t").header().fmt(f)?;
     DynArray::new("uint64_t").header().fmt(f)?;

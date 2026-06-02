@@ -3,6 +3,7 @@ use crate::parse::data::{
   src::ParseSrc,
 };
 
+// This receives a string and tries to parse it. This does not parse string literals.
 pub fn parse_str<'src>(
   target: &'src str,
   src: ParseSrc<'src>,

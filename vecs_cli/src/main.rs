@@ -3,11 +3,13 @@
 #![feature(formatting_options)]
 
 mod cli;
+mod common;
 mod generate;
 mod parse;
 mod resolve;
 
 use std::{
+  env,
   fs::{self, File, OpenOptions},
   io::{self, Write, stdout},
   path::PathBuf,
@@ -31,6 +33,12 @@ fn main() {
 
   let src = ParseSrc::new(Some(&cli.source), &src_str);
   let ast = parse(src).expect("parsing error").value;
+
+  let debug_ast = env::var("VECS_DEBUG_AST").is_ok_and(|e| !e.is_empty());
+  if debug_ast {
+    println!("{}", ast);
+  }
+
   let cst = resolve(ast).expect("resolving error");
 
   let dest = PathBuf::from_str(&cli.dest).expect("failed to parse output directory");

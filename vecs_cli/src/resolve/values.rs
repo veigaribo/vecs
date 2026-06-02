@@ -1,8 +1,12 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+  collections::{HashMap, VecDeque},
+  fmt::Display,
+};
 
 use educe::Educe;
 
 use crate::{
+  common::StringKind,
   parse::{
     ast::{Expression, ExpressionKind, ListEntry},
     data::str::Span,
@@ -13,9 +17,10 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueKind<'src> {
   Integer(i128),
+  String(StringKind),
   Symbol(&'src str),
-  List(Vec<Value<'src>>),
-  Application(Vec<Value<'src>>),
+  List(VecDeque<Value<'src>>),
+  Application(VecDeque<Value<'src>>),
 }
 
 #[derive(Debug, Clone, Eq, Educe)]
@@ -37,6 +42,7 @@ impl<'src> Display for Value<'src> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self.kind {
       ValueKind::Integer(x) => write!(f, "{}", x),
+      ValueKind::String(ref x) => x.fmt(f),
       ValueKind::Symbol(name) => write!(f, "`{}`", name),
       ValueKind::List(ref values) => {
         if values.is_empty() {
@@ -44,10 +50,11 @@ impl<'src> Display for Value<'src> {
         } else {
           write!(f, "{{ ")?;
 
-          let head = &values[0];
+          let mut iter = values.iter();
+          let head = iter.next().unwrap();
           head.fmt(f)?;
 
-          for value in &values[1..] {
+          for value in iter {
             write!(f, ", {}", value)?;
           }
 
@@ -60,10 +67,11 @@ impl<'src> Display for Value<'src> {
         } else {
           write!(f, "( ")?;
 
-          let head = &values[0];
+          let mut iter = values.iter();
+          let head = iter.next().unwrap();
           head.fmt(f)?;
 
-          for value in &values[1..] {
+          for value in iter {
             write!(f, ", {}", value)?;
           }
 
@@ -94,13 +102,14 @@ impl<'src> VarTable<'src> {
     self.variables.get(name).cloned()
   }
 
-  pub fn resolve(&self, expr: &Expression<'src>) -> ResolveResult<'src, Value<'src>> {
+  pub fn resolve(&self, expr: Expression<'src>) -> ResolveResult<'src, Value<'src>> {
     let span = expr.span;
 
-    match &expr.kind {
-      ExpressionKind::Integer(x) => Ok(Value::new(ValueKind::Integer(*x), span)),
-      ExpressionKind::Symbol(x) => Ok(Value::new(ValueKind::Symbol(*x), span)),
-      ExpressionKind::Variable(name) => match self.resolve_var(*name) {
+    match expr.kind {
+      ExpressionKind::Integer(x) => Ok(Value::new(ValueKind::Integer(x), span)),
+      ExpressionKind::String(x) => Ok(Value::new(ValueKind::String(x.into()), span)),
+      ExpressionKind::Symbol(x) => Ok(Value::new(ValueKind::Symbol(x), span)),
+      ExpressionKind::Variable(name) => match self.resolve_var(name) {
         Some(value) => Ok(value),
         None => Err(ResolveError::new(
           span,
@@ -108,23 +117,23 @@ impl<'src> VarTable<'src> {
         )),
       },
       ExpressionKind::Application(items) => {
-        let mut resolved = Vec::<Value>::with_capacity(items.len());
+        let mut resolved = VecDeque::<Value>::with_capacity(items.len());
 
         for entry in items {
           let value = self.resolve(entry)?;
-          resolved.push(value);
+          resolved.push_back(value);
         }
 
         Ok(Value::new(ValueKind::Application(resolved), span))
       }
       ExpressionKind::List(items) => {
-        let mut resolved = Vec::<Value>::with_capacity(items.len());
+        let mut resolved = VecDeque::<Value>::with_capacity(items.len());
 
         for entry in items {
           match entry {
             ListEntry::Expr(expression) => {
               let value = self.resolve(expression)?;
-              resolved.push(value);
+              resolved.push_back(value);
             }
             ListEntry::Embed(expression) => {
               let value = self.resolve(expression)?;

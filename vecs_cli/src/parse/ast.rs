@@ -1,8 +1,9 @@
-use std::fmt;
+use educe::Educe;
+use std::{collections::VecDeque, fmt};
 
 #[cfg(test)]
 use crate::parse::data::str::Location;
-use crate::parse::data::str::Span;
+use crate::{common::StringKind, parse::data::str::Span};
 
 // A positional entry in a table may be a normal value or the embedment of another
 // table.
@@ -15,6 +16,7 @@ pub enum ListEntry<'src> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionKind<'src> {
   Integer(i128),
+  String(StringKind),
   Symbol(&'src str),
   Variable(&'src str),
 
@@ -49,6 +51,7 @@ impl<'src> Expression<'src> {
 
     match &self.kind {
       ExpressionKind::Integer(value) => writeln!(w, "int ({}) {}", span, value),
+      ExpressionKind::String(value) => writeln!(w, "str ({}) {}", span, value),
       ExpressionKind::Symbol(value) => writeln!(w, "sym ({}) {}", span, value),
       ExpressionKind::Variable(value) => writeln!(w, "var ({}) {}", span, value),
       ExpressionKind::Application(expressions) => {
@@ -95,7 +98,7 @@ impl<'src> Expression<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Ast<'src>(pub Vec<Expression<'src>>);
+pub struct Ast<'src>(pub VecDeque<Expression<'src>>);
 
 impl<'src> fmt::Display for Ast<'src> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -125,9 +128,33 @@ macro_rules! int {
   };
 }
 
-use educe::Educe;
 #[cfg(test)]
 pub(crate) use int;
+
+#[cfg(test)]
+macro_rules! string {
+  // Double quoted
+  ("", $value:expr) => {
+    crate::parse::ast::Expression::new(
+      crate::parse::ast::ExpressionKind::String(
+        crate::common::StringKind::DoubleQuoted($value.to_string()),
+      ),
+      crate::parse::ast::DUMMY_SPAN,
+    )
+  };
+  // Angle bracketed
+  (<>, $value:expr) => {
+    crate::parse::ast::Expression::new(
+      crate::parse::ast::ExpressionKind::String(
+        crate::common::StringKind::AngleBracketed($value.to_string()),
+      ),
+      crate::parse::ast::DUMMY_SPAN,
+    )
+  };
+}
+
+#[cfg(test)]
+pub(crate) use string;
 
 #[cfg(test)]
 macro_rules! sym {

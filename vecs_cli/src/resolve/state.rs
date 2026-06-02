@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::resolve::{
   ResolveMeta,
   cst::{State, StateBuilder},
@@ -6,11 +8,11 @@ use crate::resolve::{
 };
 
 pub fn resolve_state<'src>(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  mut values: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, State<'src>> {
   let mut s = StateBuilder::default();
-  let maybe_value = cdr.get(0);
+  let maybe_value = values.pop_front();
   s.span(meta.span);
 
   if let Some(value) = maybe_value {
@@ -44,17 +46,19 @@ pub fn resolve_state<'src>(
       ));
     }
 
-    let maybe_value = cdr.get(1);
+    let maybe_value = values.pop_front();
 
     let mut got_nodes = false;
     let mut got_systems = false;
 
     if let Some(value) = maybe_value {
-      if let ValueKind::List(ref values) = value.kind {
+      if let ValueKind::List(values) = value.kind {
         for value in values {
-          if let ValueKind::Application(ref values) = value.kind {
-            let car = &values[0];
-            let cdr = &values[1..];
+          if let ValueKind::Application(mut values) = value.kind {
+            let car = values.pop_front().ok_or_else(|| {
+              let name = s.name.unwrap();
+              ResolveError::new(value.span, format!("body of state {} empty. should contain a list of systems and optionally a list of nodes", name))
+            })?;
 
             if car.kind == ValueKind::Symbol("nodes") {
               if got_nodes {
@@ -65,7 +69,7 @@ pub fn resolve_state<'src>(
               }
 
               got_nodes = true;
-              let nodes = resolve_state_nodes(meta, cdr)?;
+              let nodes = resolve_state_nodes(meta, values)?;
 
               for node in nodes {
                 s.add_node(node);
@@ -79,7 +83,7 @@ pub fn resolve_state<'src>(
               }
 
               got_systems = true;
-              let systems = resolve_state_systems(meta, cdr)?;
+              let systems = resolve_state_systems(meta, values)?;
 
               // Add system nodes
               for system in systems.iter().flatten() {
@@ -95,8 +99,7 @@ pub fn resolve_state<'src>(
             }
           } else {
             panic!(
-              "malformed ast: root expression is not an application. this is a bug.\n{}",
-              meta.ast,
+              "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
             );
           }
         }
@@ -125,14 +128,13 @@ pub fn resolve_state<'src>(
   }
 
   Ok(s.build().expect(&format!(
-    "failed to build state. this is a bug.\n{}",
-    meta.ast
+    "failed to build state. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
   )))
 }
 
 fn resolve_state_nodes<'src>(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  cdr: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, Vec<&'src str>> {
   let mut ss = Vec::<&'src str>::new();
   let maybe_value = cdr.get(0);
@@ -167,8 +169,7 @@ fn resolve_state_nodes<'src>(
           }
         } else {
           panic!(
-            "malformed ast: root expression is not an application. this is a bug.\n{}",
-            meta.ast,
+            "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
           );
         }
       }
@@ -192,8 +193,8 @@ fn resolve_state_nodes<'src>(
 }
 
 fn resolve_state_systems<'src>(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  cdr: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, Vec<Vec<&'src str>>> {
   let mut ss = Vec::<Vec<&'src str>>::new();
   let maybe_value = cdr.get(0);
@@ -248,8 +249,7 @@ fn resolve_state_systems<'src>(
                 }
               } else {
                 panic!(
-                  "malformed ast: root expression is not an application. this is a bug.\n{}",
-                  meta.ast,
+                  "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
                 );
               }
             }
@@ -261,8 +261,7 @@ fn resolve_state_systems<'src>(
           }
         } else {
           panic!(
-            "malformed ast: root expression is not an application. this is a bug.\n{}",
-            meta.ast,
+            "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
           );
         }
       }

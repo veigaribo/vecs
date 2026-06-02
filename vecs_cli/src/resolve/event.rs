@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::resolve::{
   ResolveMeta,
   cst::Struct,
@@ -7,8 +9,8 @@ use crate::resolve::{
 };
 
 pub fn resolve_event<'src>(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  cdr: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, Struct<'src>> {
   resolve_struct(meta, cdr, |name, span| {
     if meta.cst.events.contains_key(name) {

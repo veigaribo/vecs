@@ -1,6 +1,7 @@
 pub mod application;
 pub mod integer;
 pub mod list;
+pub mod string;
 pub mod symbol;
 pub mod variable;
 
@@ -11,8 +12,12 @@ use crate::parse::{
     src::ParseSrc,
   },
   expressions::{
-    application::parse_application, integer::parse_integer, list::parse_list,
-    symbol::parse_symbol, variable::parse_variable,
+    application::parse_application,
+    integer::parse_integer,
+    list::parse_list,
+    string::{parse_angle_bracketed_string, parse_double_quoted_string},
+    symbol::parse_symbol,
+    variable::parse_variable,
   },
 };
 
@@ -32,6 +37,8 @@ fn parse_basic_expression<'src>(
   match head.unwrap() {
     '$' => parse_variable(src.clone()),
     '{' => parse_list(src.clone()),
+    '"' => parse_double_quoted_string(src.clone()),
+    '<' => parse_angle_bracketed_string(src.clone()),
     _ => parse_integer(src.clone())
       .or_else(|_| parse_symbol(src.clone()))
       .map_err(|err| {

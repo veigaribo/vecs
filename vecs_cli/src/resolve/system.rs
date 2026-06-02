@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::resolve::{
   ResolveMeta,
   cst::{System, SystemBuilder},
@@ -8,12 +10,12 @@ use crate::resolve::{
 use super::cst::{Node, NodeBuilder};
 
 pub fn resolve_system<'src>(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  values: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, (System<'src>, Node<'src>)> {
   let mut s = SystemBuilder::default();
   let mut n = NodeBuilder::default();
-  let maybe_value = cdr.get(0);
+  let maybe_value = values.get(0);
   s.span(meta.span);
   n.span(meta.span);
 
@@ -54,14 +56,14 @@ pub fn resolve_system<'src>(
     }
 
     let mut value_cursor = 1;
-    let maybe_value = cdr.get(value_cursor);
+    let maybe_value = values.get(value_cursor);
 
     if let Some(value) = maybe_value {
       if let ValueKind::Symbol(ref on) = value.kind {
         // `on <event>`
         if *on == "on" {
           value_cursor += 1;
-          let maybe_value = cdr.get(value_cursor);
+          let maybe_value = values.get(value_cursor);
 
           if let Some(value) = maybe_value {
             if let ValueKind::Symbol(event) = value.kind {
@@ -97,7 +99,7 @@ pub fn resolve_system<'src>(
         s.event("frame");
       }
 
-      let maybe_values = cdr.get(value_cursor);
+      let maybe_values = values.get(value_cursor);
       if let Some(values) = maybe_values {
         if let ValueKind::List(ref values) = values.kind {
           n.init_components();
@@ -136,8 +138,7 @@ pub fn resolve_system<'src>(
               }
             } else {
               panic!(
-                "malformed ast: root expression is not an application. this is a bug.\n{}",
-                meta.ast,
+                "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
               );
             }
           }
@@ -162,7 +163,7 @@ pub fn resolve_system<'src>(
       ));
     }
 
-    if let Some(extra) = cdr.get(value_cursor + 1) {
+    if let Some(extra) = values.get(value_cursor + 1) {
       return Err(ResolveError::new(
         meta.span,
         format!("unexpected value {}", extra),
@@ -177,12 +178,10 @@ pub fn resolve_system<'src>(
 
   Ok((
     s.build().expect(&format!(
-      "failed to build system. this is a bug.\n{}",
-      meta.ast
+      "failed to build system. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
     )),
     n.build().expect(&format!(
-      "failed to build node. this is a bug.\n{}",
-      meta.ast
+      "failed to build node. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
     )),
   ))
 }

@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::resolve::{
   ResolveMeta,
   cst::{Node, NodeBuilder},
@@ -6,11 +8,11 @@ use crate::resolve::{
 };
 
 pub fn resolve_node<'src>(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  values: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, Node<'src>> {
   let mut n = NodeBuilder::default();
-  let maybe_value = cdr.get(0);
+  let maybe_value = values.get(0);
   n.span(meta.span);
 
   if let Some(value) = maybe_value {
@@ -35,7 +37,7 @@ pub fn resolve_node<'src>(
       ));
     }
 
-    let maybe_value = cdr.get(1);
+    let maybe_value = values.get(1);
 
     if let Some(value) = maybe_value {
       if let ValueKind::List(ref values) = value.kind {
@@ -70,8 +72,7 @@ pub fn resolve_node<'src>(
             }
           } else {
             panic!(
-              "malformed ast: root expression is not an application. this is a bug.\n{}",
-              meta.ast,
+              "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
             );
           }
         }
@@ -82,7 +83,7 @@ pub fn resolve_node<'src>(
         ));
       }
 
-      if let Some(extra) = cdr.get(2) {
+      if let Some(extra) = values.get(2) {
         return Err(ResolveError::new(
           meta.span,
           format!("unexpected value {}", extra),
@@ -102,7 +103,6 @@ pub fn resolve_node<'src>(
   }
 
   Ok(n.build().expect(&format!(
-    "failed to build node. this is a bug.\n{}",
-    meta.ast
+    "failed to build node. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
   )))
 }

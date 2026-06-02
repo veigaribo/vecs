@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use derive_builder::Builder;
 
-use crate::parse::data::str::Span;
+use crate::{common::StringKind, parse::data::str::Span};
 
 // CST means "concrete semantic tree".
 // Maybe you wouldn't consider this a tree but I think `css` would be too confusing.
@@ -128,6 +128,7 @@ pub struct System<'src> {
 pub struct State<'src> {
   pub span: Span<'src>,
 
+  #[builder(field(vis = "pub"))]
   pub name: &'src str,
 
   #[builder(field(vis = "pub"))]
@@ -171,6 +172,7 @@ impl<'src> StateBuilder<'src> {
 
 #[derive(Debug, Clone, Default)]
 pub struct Cst<'src> {
+  pub includes: Vec<StringKind>,
   // pub settings: Settings,
   pub components: HashMap<&'src str, Component<'src>>,
   pub events: HashMap<&'src str, Struct<'src>>,
@@ -185,6 +187,10 @@ pub struct Cst<'src> {
 // system) because it's usually more efficient to check for such things in the middle
 // of resolution.
 impl<'src> Cst<'src> {
+  pub fn add_include(&mut self, include: StringKind) {
+    self.includes.push(include);
+  }
+
   pub fn add_component(&mut self, strukt: Struct<'src>) {
     let name = strukt.name;
     let index = self.components.len();

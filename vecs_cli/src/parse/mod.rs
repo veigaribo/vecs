@@ -4,6 +4,8 @@ pub mod data;
 pub mod expressions;
 mod util;
 
+use std::collections::VecDeque;
+
 use crate::parse::{
   ast::{Ast, Expression},
   comments::parse_comment,
@@ -51,7 +53,7 @@ pub fn strip_comments(t: &mut str) {
 
 pub fn parse<'src>(mut src: ParseSrc<'src>) -> ParseResult<'src, Ast<'src>> {
   let start = src.clone();
-  let mut parsed = Vec::<Expression>::new();
+  let mut parsed = VecDeque::<Expression>::new();
 
   src = parse_whitespace(src)?.src;
 
@@ -65,7 +67,7 @@ pub fn parse<'src>(mut src: ParseSrc<'src>) -> ParseResult<'src, Ast<'src>> {
   while !src.is_empty() {
     let expr = parse_expression(src)?;
     src = parse_whitespace(expr.src)?.src;
-    parsed.push(expr.value);
+    parsed.push_back(expr.value);
 
     let mut whatever =
       parse_char(';', src.clone()).or_else(|_| parse_char(',', src.clone()));
@@ -87,8 +89,10 @@ pub fn parse<'src>(mut src: ParseSrc<'src>) -> ParseResult<'src, Ast<'src>> {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::VecDeque;
+
   use crate::parse::{
-    ast::{app, list, sym, Ast},
+    ast::{Ast, app, list, sym},
     data::src::ParseSrc,
     parse, strip_comments,
   };
@@ -146,7 +150,7 @@ component airton {\r\nint x;
     let result = parse(src).expect("parse error");
     assert_eq!(
       result.value,
-      Ast(vec![
+      Ast(VecDeque::from([
         app!(
           sym!("component"),
           sym!("transform"),
@@ -175,7 +179,7 @@ component airton {\r\nint x;
           sym!("render"),
           list!(app!(sym!("transform")), app!(sym!("render"))),
         ),
-      ]),
+      ]))
     );
   }
 }

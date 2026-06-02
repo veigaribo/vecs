@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::{
   parse::data::str::Span,
   resolve::{result::ResolveResult, values::Value},
@@ -8,7 +10,7 @@ use super::cst::Cst;
 // Modifies the CST directly because that's the easiest thing to do.
 pub fn resolve_setting<'src>(
   _span: Span<'src>,
-  _cdr: &[Value<'src>],
+  _cdr: VecDeque<Value<'src>>,
   _cst: &mut Cst,
 ) -> ResolveResult<'src, ()> {
   // There are currently no settings.

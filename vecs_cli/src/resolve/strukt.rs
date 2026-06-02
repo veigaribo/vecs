@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::{
   parse::data::str::Span,
   resolve::{
@@ -12,12 +14,12 @@ pub fn resolve_struct<
   'src,
   F: Fn(&'src str, Span<'src>) -> ResolveResult<'src, ()>,
 >(
-  meta: ResolveMeta<'src, '_, '_>,
-  cdr: &[Value<'src>],
+  meta: ResolveMeta<'src, '_>,
+  values: VecDeque<Value<'src>>,
   validate_name: F,
 ) -> ResolveResult<'src, Struct<'src>> {
   let mut s = StructBuilder::default();
-  let maybe_value = cdr.get(0);
+  let maybe_value = values.get(0);
   s.span(meta.span);
 
   if let Some(value) = maybe_value {
@@ -31,7 +33,7 @@ pub fn resolve_struct<
       ));
     }
 
-    let maybe_value = cdr.get(1);
+    let maybe_value = values.get(1);
 
     if let Some(value) = maybe_value {
       if let ValueKind::List(ref values) = value.kind {
@@ -70,13 +72,11 @@ pub fn resolve_struct<
             field.name(name);
 
             s.add_field(field.build().expect(&format!(
-              "failed to build struct field. this is a bug.\n{}",
-              meta.ast
+              "failed to build struct field. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
             )));
           } else {
             panic!(
-              "malformed ast: root expression is not an application. this is a bug.\n{}",
-              meta.ast,
+              "malformed ast: root expression is not an application. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
             );
           }
         }
@@ -87,7 +87,7 @@ pub fn resolve_struct<
         ));
       }
 
-      if let Some(extra) = cdr.get(2) {
+      if let Some(extra) = values.get(2) {
         return Err(ResolveError::new(
           meta.span,
           format!("unexpected value {}", extra),
@@ -107,7 +107,6 @@ pub fn resolve_struct<
   }
 
   Ok(s.build().expect(&format!(
-    "failed to build component. this is a bug.\n{}",
-    meta.ast
+    "failed to build component. this is a bug. run with VECS_DEBUG_AST set to dump the AST",
   )))
 }
