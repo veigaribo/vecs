@@ -581,13 +581,15 @@ impl<'a> Display for Impl<'a> {
         let event_queue = DynQueue::new(event_t.clone());
         let event_queue_name = event_queue.get_type();
 
-        write!(f, "  while (e->events_{}.len > 0) {{\n", event.name)?;
         write!(
           f,
-          "    {} ev = {}(&e->events_{});\n",
-          event_t,
-          method_name!(&event_queue_name, "dequeue"),
-          event.name,
+          concat!(
+            "  while (e->events_{event_name}.len > 0) {{\n",
+            "    {event_t} ev = {events_method_dequeue}(&e->events_{event_name});\n",
+          ),
+          event_name = event.name,
+          event_t = event_t,
+          events_method_dequeue = method_name!(&event_queue_name, "dequeue"),
         )?;
 
         for system_layer in state.systems.iter() {
@@ -604,6 +606,7 @@ impl<'a> Display for Impl<'a> {
               write!(
                 f,
                 concat!(
+                  "    {system_name}_init(e, ev);\n",
                   "    for (size_t i = 0; i < e->nodes_{node_name}.len; ++i) {{\n",
                   "      {node_t} *node = &e->nodes_{node_name}.items[i];\n",
                   "      {system_name}(e, *node, ev);\n",

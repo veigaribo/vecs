@@ -1,6 +1,10 @@
 #include "vecs.h"
 #include <stdio.h>
 
+void move_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
+  printf("starting system move\n");
+}
+
 void move(vecs_engine_t *engine, vecs_node_move_t node,
           vecs_event_mouse_click_t event) {
   vecs_component_transform_t *t = vecs_node_move_get_transform(engine, node);
@@ -18,6 +22,10 @@ void move(vecs_engine_t *engine, vecs_node_move_t node,
   }
 }
 
+void render_init(vecs_engine_t *engine, vecs_event_frame_t event) {
+  printf("starting system render\n");
+}
+
 void render(vecs_engine_t *engine, vecs_node_render_t node,
             vecs_event_frame_t event) {
   vecs_component_transform_t *t = vecs_node_render_get_transform(engine, node);
@@ -26,6 +34,10 @@ void render(vecs_engine_t *engine, vecs_node_render_t node,
   printf(
       ".delta: %f, .runtime: %f, .frame: %lu, .x: %f, .y: %f, .texture: %d\n",
       event.delta, event.runtime, event.frame, t->x, t->y, r->texture);
+}
+
+void click_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
+  printf("starting system click\n");
 }
 
 void click(vecs_engine_t *engine, vecs_node_click_t node,

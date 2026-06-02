@@ -255,11 +255,16 @@ impl<'a> Display for Header<'a> {
       let node_t = NodeStructName::new(system.node);
       let event_t = EventStructName::new(system.event);
 
-      write!(f, "// System `{}`.\n", system.name)?;
       write!(
         f,
-        "void {}(vecs_engine_t *engine, {} node, {} event);\n",
-        system.name, node_t, event_t,
+        concat!(
+          "// System `{system_name}`.\n",
+          "void {system_name}_init(vecs_engine_t *engine, {event_t} event);\n",
+          "void {system_name}(vecs_engine_t *engine, {node_t} node, {event_t} event);\n"
+        ),
+        system_name = system.name,
+        node_t = node_t,
+        event_t = event_t,
       )?;
     }
 
