@@ -273,10 +273,10 @@ impl<'a> Display for Impl<'a> {
       let component_mask_name = ComponentMaskName::new(component_name);
 
       let entity_array = SparseDynArray::new("vecs_entity_t");
-      let entity_array_name = entity_array.get_type();
+      let entity_array_t = entity_array.get_type();
 
       let component_array = SparseDynArray::new(component_t.clone());
-      let component_array_name = component_array.get_type();
+      let component_array_t = component_array.get_type();
 
       // Has component:
       write!(
@@ -288,7 +288,7 @@ impl<'a> Display for Impl<'a> {
           "}}\n",
         ),
         component_name = component_name,
-        entity_array_method_get = method_name!(&entity_array_name, "get"),
+        entity_array_method_get = method_name!(&entity_array_t, "get"),
         component_mask_name = component_mask_name,
       )?;
 
@@ -309,8 +309,33 @@ impl<'a> Display for Impl<'a> {
           state_name = state.name,
           component_name = component_name,
           component_t = component_t,
-          component_array_method_push = method_name!(&component_array_name, "push"),
+          component_array_method_push = method_name!(&component_array_t, "push"),
           entity_to_component_array_method_add = method_name!(&index_index_t, "add"),
+        )?;
+
+        // Update components:
+        write!(
+          f,
+          concat!(
+            "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
+            "  vecs_id_t component_id;\n",
+            "  if (vecs_has_component_{component_name}(e, entity)) {{\n",
+            "    uint32_t component_index;\n",
+            "    {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
+            "    {component_t} *found = {component_array_method_get_unchecked}(&e->components_{component_name}, component_index);\n",
+            "    *found = component;\n",
+            "  }} else {{\n",
+            "    vecs_{state_name}_add_component_{component_name}(e, entity, component);\n",
+            "  }}\n",
+            "  return component_id;\n",
+            "}}\n",
+          ),
+          state_name = state.name,
+          component_name = component_name,
+          component_t = component_t,
+          entity_to_component_array_method_get = method_name!(&index_index_t, "get"),
+          component_array_method_get_unchecked =
+            method_name!(&component_array_t, "get_unchecked"),
         )?;
 
         // Remove components:
@@ -333,7 +358,7 @@ impl<'a> Display for Impl<'a> {
           component_name = component_name,
           component_t = component_t,
           component_array_method_remove_unchecked =
-            method_name!(&component_array_name, "remove_unchecked"),
+            method_name!(&component_array_t, "remove_unchecked"),
           entity_to_component_array_method_remove =
             method_name!(&index_index_t, "remove"),
         )?;
@@ -346,7 +371,7 @@ impl<'a> Display for Impl<'a> {
             "  vecs_entity_t *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
           ),
           state_name = state.name,
-          entity_array_method_get = method_name!(&entity_array_name, "get"),
+          entity_array_method_get = method_name!(&entity_array_t, "get"),
           component_name = component_name,
         )?;
 
@@ -390,7 +415,7 @@ impl<'a> Display for Impl<'a> {
             "  mix_mask({component_mask_name}, ent->mask);\n",
           ),
           state_name = state.name,
-          entity_array_method_get = method_name!(&entity_array_name, "get"),
+          entity_array_method_get = method_name!(&entity_array_t, "get"),
           component_name = component_name,
           component_mask_name = component_mask_name,
         )?;

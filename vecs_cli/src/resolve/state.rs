@@ -256,7 +256,10 @@ fn resolve_state_systems<'src>(
           } else {
             return Err(ResolveError::new(
               value.span,
-              format!("state system list must be a list. instead found {}", value,),
+              format!(
+                "state system list must be a list. instead found {} (maybe wrap it in another list?)",
+                value,
+              ),
             ));
           }
         } else {

@@ -92,6 +92,13 @@ int main() {
   vecs_main_add_component_render(&e, ent1, r1);
   vecs_run_state_main(&e);
 
+  printf("  update render\n");
+  vecs_emit_mouse_click(&e, mc1);
+  vecs_emit_frame(&e, f1);
+  r1.texture = 25;
+  vecs_main_update_component_render(&e, ent1, r1);
+  vecs_run_state_main(&e);
+
   printf("  main -> menu\n");
   vecs_state_main_to_menu(&e);
 
