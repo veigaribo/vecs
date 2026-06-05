@@ -112,6 +112,11 @@ pub struct System<'src> {
   pub name: &'src str,
   pub event: &'src str,
   pub node: &'src str,
+
+  // The amount of states this system is in. We use this to show a warning in case
+  // there are zero (this system is not used at all).
+  #[builder(default = 0)]
+  pub in_state_count: usize,
 }
 
 // States.
@@ -226,6 +231,16 @@ impl<'src> Cst<'src> {
   }
 
   pub fn add_state(&mut self, state: State<'src>) {
+    for system_names in state.systems.iter() {
+      for system_name in system_names.iter() {
+        let system = self.systems.get_mut(system_name);
+
+        system
+          .expect("state references non existent system")
+          .in_state_count += 1;
+      }
+    }
+
     self.states.insert(state.name, state);
   }
 }

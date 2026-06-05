@@ -100,5 +100,14 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
     }
   }
 
+  for system in cst.systems.values() {
+    if system.in_state_count == 0 {
+      eprintln!(
+        "WARNING: system {} not referenced in any state. it will not be invoked.",
+        system.name
+      );
+    }
+  }
+
   Ok(cst)
 }
