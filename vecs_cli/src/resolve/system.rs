@@ -166,7 +166,10 @@ pub fn resolve_system<'src>(
     if let Some(extra) = values.get(value_cursor + 1) {
       return Err(ResolveError::new(
         meta.span,
-        format!("unexpected value {}", extra),
+        format!(
+          "unexpected value in system: {} (maybe you're missing a semicolon?)",
+          extra
+        ),
       ));
     }
   } else {

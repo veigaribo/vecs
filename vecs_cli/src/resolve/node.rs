@@ -86,7 +86,10 @@ pub fn resolve_node<'src>(
       if let Some(extra) = values.get(2) {
         return Err(ResolveError::new(
           meta.span,
-          format!("unexpected value {}", extra),
+          format!(
+            "unexpected value in node: {} (maybe you're missing a semicolon?)",
+            extra
+          ),
         ));
       }
     } else {

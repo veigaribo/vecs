@@ -19,7 +19,10 @@ pub fn resolve_include<'src>(
     let extra_value = cdr.pop_front().unwrap();
     return Err(ResolveError::new(
       extra_value.span,
-      format!("unexpected value {}", extra_value),
+      format!(
+        "unexpected value in include: {} (maybe you're missing a semicolon?)",
+        extra_value
+      ),
     ));
   }
 

@@ -6,11 +6,9 @@ pub mod node;
 pub mod result;
 pub mod setting;
 pub mod state;
-pub mod strukt;
 pub mod system;
 pub mod values;
 
-use cst::StructField;
 use node::resolve_node;
 use setting::resolve_setting;
 
@@ -41,23 +39,10 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
   let mut cst = Cst::default();
 
   // The default `frame` event.
-  cst.add_event(cst::Struct {
+  cst.add_event(cst::TypeName {
     span: Span::default(),
     name: "frame",
-    fields: vec![
-      StructField {
-        typ: vec!["float"],
-        name: "delta",
-      },
-      StructField {
-        typ: vec!["double"],
-        name: "runtime",
-      },
-      StructField {
-        typ: vec!["uint64_t"],
-        name: "frame",
-      },
-    ],
+    type_components: vec!["vecs_frame_t"],
   });
 
   let exprs = ast.0;

@@ -15,6 +15,26 @@ use super::{
   },
 };
 
+fn write_iterator<W: std::fmt::Write, I: Iterator<Item = T>, T: Display>(
+  w: &mut W,
+  mut iter: I,
+) -> std::fmt::Result {
+  let next = iter.next();
+
+  match next {
+    Some(head) => {
+      write!(w, "{}", head)?;
+    }
+    None => return Ok(()),
+  }
+
+  for i in iter {
+    write!(w, " {}", i)?;
+  }
+
+  return Ok(());
+}
+
 pub struct Header<'a> {
   pub data: &'a Cst<'a>,
 }
@@ -39,6 +59,23 @@ impl<'a> Display for Header<'a> {
     }
     write!(f, "\n")?;
 
+    write!(
+      f,
+      concat!(
+        "// Index and gen in one struct\n",
+        "typedef struct vecs_id {{\n",
+        "  uint32_t index;\n",
+        "  uint32_t gen;\n",
+        "}} vecs_id_t;\n",
+        "\n",
+        "typedef struct vecs_frame {{\n",
+        "  float delta;\n",
+        "  double runtime;\n",
+        "  uint64_t frame;\n",
+        "}} vecs_frame_t;\n",
+      ),
+    )?;
+
     // Used in every SparseDynArray.
     DynArray::new("uint32_t").header().fmt(f)?;
     DynArray::new("uint64_t").header().fmt(f)?;
@@ -48,37 +85,16 @@ impl<'a> Display for Header<'a> {
       // Event struct:
       let event_t = EventStructName::new(event.name);
 
-      write!(f, "// Event `{}`.\n\n", event.name)?;
-      write!(
-        f,
-        "typedef struct {} {{\n",
-        whatever_name!("event", event.name),
-      )?;
+      write!(f, "// Event `{}`.\ntypedef ", event.name,)?;
 
-      for field in event.fields.iter() {
-        for typ_segment in field.typ.iter() {
-          write!(f, "  {} ", typ_segment)?;
-        }
+      let event_type_name_iter = event.type_components.iter().intersperse(&" ");
+      write_iterator(f, event_type_name_iter)?;
 
-        write!(f, "{};\n", field.name)?;
-      }
-      write!(f, "}} {};\n\n", event_t)?;
+      write!(f, " {};\n\n", event_t)?;
 
       // Event queue:
       DynQueue::new(event_t).header().fmt(f)?;
     }
-
-    // Index and gen in one struct:
-    write!(
-      f,
-      concat!(
-        "typedef struct {whatever} {{\n",
-        "  uint32_t index;\n",
-        "  uint32_t gen;\n",
-        "}} vecs_id_t;\n",
-      ),
-      whatever = whatever_name!("vecs_id"),
-    )?;
 
     // Used to access things from other things faster (index):
     let index_index = SkipList::new("vecs_id_t", "uint32_t");
@@ -91,21 +107,14 @@ impl<'a> Display for Header<'a> {
       let component_name = component.name();
       let component_t = ComponentStructName::new(component_name);
 
-      write!(f, "// Component `{}`.\n\n", component_name)?;
-      write!(
-        f,
-        "typedef struct {} {{\n",
-        whatever_name!("component", component_name),
-      )?;
+      write!(f, "// Component `{}`.\ntypedef ", component_name)?;
 
-      for field in component.strukt.fields.iter() {
-        for typ_segment in field.typ.iter() {
-          write!(f, "  {} ", typ_segment)?;
-        }
+      let component_type_name_iter =
+        component.typ.type_components.iter().intersperse(&" ");
 
-        write!(f, "{};\n", field.name)?;
-      }
-      write!(f, "}} {};\n\n", component_t)?;
+      write_iterator(f, component_type_name_iter)?;
+
+      write!(f, " {};\n\n", component_t)?;
 
       // Component mask:
       write!(
@@ -219,7 +228,7 @@ impl<'a> Display for Header<'a> {
       let dyn_queue = DynQueue::new(event_t);
       let dyn_queue_t = dyn_queue.get_type();
 
-      write!(f, "  {} events_{};\n", dyn_queue_t, event.name,)?;
+      write!(f, "  {} events_{};\n", dyn_queue_t, event.name)?;
     }
 
     write!(f, "}} vecs_engine_t;\n\n")?;

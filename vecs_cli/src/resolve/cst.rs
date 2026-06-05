@@ -10,42 +10,38 @@ use crate::{common::StringKind, parse::data::str::Span};
 // Structs (components and events).
 
 #[derive(Debug, Clone, Builder)]
-pub struct StructField<'src> {
-  // Vec of identifier components (like vec![unsigned, long, long, int]).
-  pub typ: Vec<&'src str>,
-  pub name: &'src str,
-}
-
-#[derive(Debug, Clone, Builder)]
-pub struct Struct<'src> {
+pub struct TypeName<'src> {
   pub span: Span<'src>,
 
+  #[builder(field(vis = "pub"))]
   pub name: &'src str,
-  pub fields: Vec<StructField<'src>>,
+
+  #[builder(field(vis = "pub"))]
+  pub type_components: Vec<&'src str>,
 }
 
-impl<'src> PartialEq for Struct<'src> {
+impl<'src> TypeNameBuilder<'src> {
+  pub fn add_type_component(&mut self, component: &'src str) {
+    if let Some(ref mut components) = self.type_components {
+      components.push(component);
+    } else {
+      self.type_components = Some(vec![component]);
+    }
+  }
+}
+
+impl<'src> PartialEq for TypeName<'src> {
   fn eq(&self, other: &Self) -> bool {
     self.name == other.name
   }
 }
 
 // We make sure there are no name conflicts.
-impl<'src> Eq for Struct<'src> {}
+impl<'src> Eq for TypeName<'src> {}
 
-impl<'src> std::hash::Hash for Struct<'src> {
+impl<'src> std::hash::Hash for TypeName<'src> {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
     self.name.hash(state)
-  }
-}
-
-impl<'src> StructBuilder<'src> {
-  pub fn add_field(&mut self, field: StructField<'src>) {
-    if let Some(ref mut fields) = self.fields {
-      fields.push(field);
-    } else {
-      self.fields = Some(vec![field]);
-    }
   }
 }
 
@@ -55,7 +51,7 @@ impl<'src> StructBuilder<'src> {
 pub struct Component<'src> {
   pub span: Span<'src>,
 
-  pub strukt: Struct<'src>,
+  pub typ: TypeName<'src>,
   // mask[i] & (1 << j)
   pub mask_i: u16,
   pub mask_j: u8,
@@ -63,12 +59,8 @@ pub struct Component<'src> {
 
 impl<'src> Component<'src> {
   pub fn name(&self) -> &'src str {
-    self.strukt.name
+    self.typ.name
   }
-
-  // pub fn id(&self) -> u16 {
-  //   self.mask_i << 6 & (self.mask_j as u16)
-  // }
 }
 
 // Nodes.
@@ -175,7 +167,7 @@ pub struct Cst<'src> {
   pub includes: Vec<StringKind>,
   // pub settings: Settings,
   pub components: HashMap<&'src str, Component<'src>>,
-  pub events: HashMap<&'src str, Struct<'src>>,
+  pub events: HashMap<&'src str, TypeName<'src>>,
   pub systems: HashMap<&'src str, System<'src>>,
   pub nodes: HashMap<&'src str, Node<'src>>,
   pub node_mask_arr_size: u16,
@@ -191,36 +183,24 @@ impl<'src> Cst<'src> {
     self.includes.push(include);
   }
 
-  pub fn add_component(&mut self, strukt: Struct<'src>) {
-    let name = strukt.name;
+  pub fn add_component(&mut self, typ: TypeName<'src>) {
     let index = self.components.len();
-
-    // We want to be able to put `i` and `j` together as a 16-bit integer. `j` will
-    // always be a number between [0, 63], so it fits nicely in 6 bits. That leaves
-    // us 16-6 bits for `i`.
-    let max_components = 1 << (16 - 6);
-    if index > max_components {
-      panic!(
-        "too many components. currently the maximum supported is {}",
-        max_components
-      );
-    }
 
     let mask_i: u16 = (index / 64).try_into().unwrap();
     let mask_j: u8 = (index % 64).try_into().unwrap();
 
     let component = Component {
-      span: strukt.span,
-      strukt,
+      span: typ.span,
+      typ,
       mask_i,
       mask_j,
     };
 
-    self.components.insert(name, component);
+    self.components.insert(component.name(), component);
     self.node_mask_arr_size = mask_i + 1;
   }
 
-  pub fn add_event(&mut self, event: Struct<'src>) {
+  pub fn add_event(&mut self, event: TypeName<'src>) {
     self.events.insert(event.name, event);
   }
 
