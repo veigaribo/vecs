@@ -87,7 +87,7 @@ impl<'a> Display for Header<'a> {
 
       write!(f, "// Event `{}`.\ntypedef ", event.name,)?;
 
-      let event_type_name_iter = event.type_components.iter().intersperse(&" ");
+      let event_type_name_iter = event.type_components.iter();
       write_iterator(f, event_type_name_iter)?;
 
       write!(f, " {};\n\n", event_t)?;
@@ -109,9 +109,7 @@ impl<'a> Display for Header<'a> {
 
       write!(f, "// Component `{}`.\ntypedef ", component_name)?;
 
-      let component_type_name_iter =
-        component.typ.type_components.iter().intersperse(&" ");
-
+      let component_type_name_iter = component.typ.type_components.iter();
       write_iterator(f, component_type_name_iter)?;
 
       write!(f, " {};\n\n", component_t)?;

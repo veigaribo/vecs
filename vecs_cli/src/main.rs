@@ -1,7 +1,6 @@
 #![allow(irrefutable_let_patterns)]
 #![feature(trait_alias)]
 #![feature(formatting_options)]
-#![feature(iter_intersperse)]
 
 mod cli;
 mod common;
