@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use derive_builder::Builder;
 
@@ -177,7 +177,9 @@ pub struct Cst<'src> {
   pub nodes: HashMap<&'src str, Node<'src>>,
   pub node_mask_arr_size: u16,
 
-  pub states: HashMap<&'src str, State<'src>>,
+  // We use a BTreeMap instead of a HashMap to have a consistent order of iteration.
+  // That is important in codegen.
+  pub states: BTreeMap<&'src str, State<'src>>,
 }
 
 // These methods do not check for errors (e.g. a non-existant component in a node or

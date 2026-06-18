@@ -1,7 +1,11 @@
 use std::{collections::HashSet, fmt::Display};
 
 use crate::{
-  generate::generics::skip_lists::{SkipList, SkipListImplInit},
+  generate::{
+    common::ComponentTmpOps,
+    constants::StateIdName,
+    generics::skip_lists::{SkipList, SkipListImplInit},
+  },
   resolve::cst::Cst,
 };
 
@@ -23,6 +27,7 @@ pub struct Impl<'a> {
 
 impl<'a> Display for Impl<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "#include <assert.h>\n")?;
     write!(f, "#include <stdlib.h>\n")?;
     write!(f, "#include <string.h>\n")?;
     write!(f, "#include \"{}\"\n\n", self.header_name)?;
@@ -105,6 +110,18 @@ impl<'a> Display for Impl<'a> {
     let entity_array = SparseDynArray::new("vecs_entity_t");
     entity_array.imple().fmt(f)?;
 
+    let op_add_component_queue = DynQueue::new("vecs_op_union_add_component_t");
+    let op_add_component_queue_t = op_add_component_queue.get_type();
+    op_add_component_queue.imple().fmt(f)?;
+
+    let op_other_queue = DynQueue::new("vecs_op_union_other_t");
+    let op_other_queue_t = op_other_queue.get_type();
+    op_other_queue.imple().fmt(f)?;
+
+    let op_remove_component_queue = DynQueue::new("vecs_op_union_remove_component_t");
+    let op_remove_component_queue_t = op_remove_component_queue.get_type();
+    op_remove_component_queue.imple().fmt(f)?;
+
     // Engine methods:
 
     let entity_array_t = entity_array.get_type();
@@ -114,9 +131,19 @@ impl<'a> Display for Impl<'a> {
       concat!(
         "void vecs_init(vecs_engine_t *e) {{\n",
         "  e->state = VECS_STATE_NONE;\n",
+        "  e->entities_to_add = 0;\n",
+        "  e->next_state = VECS_STATE_NONE;\n",
         "  {entity_array_method_init}(&e->entities, 0);\n",
+        "  {op_add_component_queue_method_init}(&e->ops_add_component, 0);\n",
+        "  {op_other_queue_method_init}(&e->ops_other, 0);\n",
+        "  {op_remove_component_queue_method_init}(&e->ops_remove_component, 0);\n",
       ),
       entity_array_method_init = method_name!(&entity_array_t, "init"),
+      op_add_component_queue_method_init =
+        method_name!(&op_add_component_queue_t, "init"),
+      op_other_queue_method_init = method_name!(&op_other_queue_t, "init"),
+      op_remove_component_queue_method_init =
+        method_name!(&op_remove_component_queue_t, "init"),
     )?;
 
     for component in self.data.components.values() {
@@ -236,6 +263,11 @@ impl<'a> Display for Impl<'a> {
         "  vecs_entity_t ent = {{0}};\n",
         "  vecs_id_t id;\n",
         "  {entity_array_method_push}(&e->entities, ent, &id.index, &id.gen);\n",
+        "  return id;\n",
+        "}}\n",
+        "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e) {{\n",
+        "  vecs_tmp_id_t id = {{.index = e->entities_to_add}};\n",
+        "  ++e->entities_to_add;\n",
         "  return id;\n",
         "}}\n",
       ),
@@ -468,6 +500,238 @@ impl<'a> Display for Impl<'a> {
 
         write!(f, concat!("}}\n",),)?;
       }
+
+      // Callbacks that are stored in the deferred operations and apply them
+      for state in self.data.states.values() {
+        write!(
+          f,
+          concat!(
+            "static void vecs_{state_name}_apply_store_entity_in_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+            "  vecs_op_store_entity_t store = op.store_entity;\n",
+            "  vecs_id_t entity = new_entities[store.tmp_entity.index];\n",
+            "  vecs_id_t *location = (vecs_id_t*)((uint8_t*)e->components_{component_name}.items.items + store.location_offset);\n",
+            "  *location = entity;\n",
+            "}}\n",
+            "static void vecs_{state_name}_apply_store_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+            "  vecs_op_store_component_t store = op.store_component;\n",
+            "  vecs_id_t component = new_components[store.tmp_component.index];\n",
+            "  vecs_id_t *location = (vecs_id_t*)((uint8_t*)e->components_{component_name}.items.items + store.location_offset);\n",
+            "  *location = component;\n",
+            "}}\n",
+            "static vecs_id_t vecs_{state_name}_apply_add_component_{component_name}(vecs_engine_t *e, vecs_id_t *new_entities, vecs_op_union_add_component_t op) {{\n",
+            "  vecs_op_add_component_{component_name}_t add = op.add_{component_name};\n",
+            "  return vecs_{state_name}_add_component_{component_name}(e, add.entity, add.component);\n",
+            "}}\n",
+            "static vecs_id_t vecs_{state_name}_apply_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_id_t *new_entities, vecs_op_union_add_component_t op) {{\n",
+            "  vecs_op_tmp_add_component_{component_name}_t add_tmp = op.add_tmp_{component_name};\n",
+            "  vecs_id_t entity = new_entities[add_tmp.tmp_entity.index];\n",
+            "  return vecs_{state_name}_add_component_{component_name}(e, entity, add_tmp.component);\n",
+            "}}\n",
+            "static void vecs_{state_name}_apply_update_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+            "  vecs_op_update_component_{component_name}_t update = op.update_{component_name};\n",
+            "  vecs_{state_name}_update_component_{component_name}(e, update.entity, update.component);\n",
+            "}}\n",
+            "static void vecs_{state_name}_apply_remove_component_{component_name}(vecs_engine_t *e, vecs_op_union_remove_component_t op) {{\n",
+            "  vecs_op_remove_component_t remove = op.remove;\n",
+            "  vecs_{state_name}_remove_component_{component_name}(e, remove.entity);\n",
+            "}}\n",
+            "static void vecs_{state_name}_apply_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+            "  vecs_op_enable_component_t enable = op.enable;\n",
+            "  vecs_{state_name}_enable_component_{component_name}(e, enable.entity);\n",
+            "}}\n",
+            "static void vecs_{state_name}_apply_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+            "  vecs_op_disable_component_t disable = op.disable;\n",
+            "  vecs_{state_name}_disable_component_{component_name}(e, disable.entity);\n",
+            "}}\n",
+          ),
+          state_name = state.name,
+          component_name = component_name,
+        )?;
+      }
+    }
+
+    let op_add_component_names = ["add_component", "tmp_add_component"];
+
+    let op_other_names = [
+      "store_entity_in",
+      "store_component",
+      "update_component",
+      "enable_component",
+      "disable_component",
+    ];
+
+    let op_remove_component_names = ["remove_component"];
+
+    // Build the operation maps, where there is an array for each component type and
+    // an operation callback for each state
+    for op_name in op_add_component_names {
+      for component in self.data.components.values() {
+        let component_name = component.name();
+        write!(
+          f,
+          concat!(
+            "vecs_id_t (* const vecs_op_map_{op_name}_{component_name}[{states_len}])(vecs_engine_t *, vecs_id_t *, vecs_op_union_add_component_t) = {{\n",
+            "  NULL,\n",
+          ),
+          op_name = op_name,
+          component_name = component_name,
+          states_len = self.data.states.len() + 1,
+        )?;
+
+        // `states` being a BTreeMap guarantees this will be in the same order as the
+        // states enum, meaning it will be able to index this properly
+        for state in self.data.states.values() {
+          write!(
+            f,
+            "  &vecs_{state_name}_apply_{op_name}_{component_name},\n",
+            op_name = op_name,
+            component_name = component_name,
+            state_name = state.name,
+          )?;
+        }
+
+        write!(f, "}};\n",)?;
+      }
+    }
+
+    for op_name in op_other_names {
+      for component in self.data.components.values() {
+        let component_name = component.name();
+        write!(
+          f,
+          concat!(
+            "void (* const vecs_op_map_{op_name}_{component_name}[{states_len}])(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) = {{\n",
+            "  NULL,\n",
+          ),
+          op_name = op_name,
+          component_name = component_name,
+          states_len = self.data.states.len() + 1,
+        )?;
+
+        // `states` being a BTreeMap guarantees this will be in the same order as the
+        // states enum, meaning it will be able to index this properly
+        for state in self.data.states.values() {
+          write!(
+            f,
+            "  &vecs_{state_name}_apply_{op_name}_{component_name},\n",
+            op_name = op_name,
+            component_name = component_name,
+            state_name = state.name,
+          )?;
+        }
+
+        write!(f, "}};\n",)?;
+      }
+    }
+
+    for op_name in op_remove_component_names {
+      for component in self.data.components.values() {
+        let component_name = component.name();
+        write!(
+          f,
+          concat!(
+            "void (* const vecs_op_map_{op_name}_{component_name}[{states_len}])(vecs_engine_t *, vecs_op_union_remove_component_t) = {{\n",
+            "  NULL,\n",
+          ),
+          op_name = op_name,
+          component_name = component_name,
+          states_len = self.data.states.len() + 1,
+        )?;
+
+        // `states` being a BTreeMap guarantees this will be in the same order as the
+        // states enum, meaning it will be able to index this properly
+        for state in self.data.states.values() {
+          write!(
+            f,
+            "  &vecs_{state_name}_apply_{op_name}_{component_name},\n",
+            op_name = op_name,
+            component_name = component_name,
+            state_name = state.name,
+          )?;
+        }
+
+        write!(f, "}};\n",)?;
+      }
+    }
+
+    for component in self.data.components.values() {
+      let component_name = component.name();
+      let component_t = ComponentStructName::new(component_name);
+      let ops = ComponentTmpOps::new(component_name);
+
+      write!(
+        f,
+        concat!(
+          "void vecs_schedule_store_entity_in_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_entity, vecs_id_t *location) {{\n",
+          "  assert(sizeof(uint8_t*) == sizeof(vecs_id_t*) && sizeof(uint8_t*) == sizeof({component_t}*));\n",
+          "\n",
+          "  // Make sure the location is inside the component array\n",
+          "  assert((uint8_t*)location >= (uint8_t*)e->components_{component_name}.items.items);\n",
+          "  assert((uint8_t*)location < (uint8_t*)e->components_{component_name}.items.items + e->components_{component_name}.items.len * sizeof({component_t}));\n",
+          "\n",
+          "  ptrdiff_t offset = (uint8_t*)e->components_{component_name}.items.items - (uint8_t*)location;\n",
+          "  vecs_op_store_entity_t store = {{.tmp_entity = tmp_entity, .location_offset = offset}};\n",
+          "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_entity_in_{component_name}[e->state], .store_entity = store}};\n",
+          "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+          "}}\n",
+          "void vecs_schedule_store_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_component, vecs_id_t *location) {{\n",
+          "  assert(sizeof(uint8_t*) == sizeof(vecs_id_t*) && sizeof(uint8_t*) == sizeof({component_t}*));\n",
+          "\n",
+          "  // Make sure the location is inside the component array\n",
+          "  assert((uint8_t*)location >= (uint8_t*)e->components_{component_name}.items.items);\n",
+          "  assert((uint8_t*)location < (uint8_t*)e->components_{component_name}.items.items + e->components_{component_name}.items.len * sizeof({component_t}));\n",
+          "\n",
+          "  ptrdiff_t offset = (uint8_t*)e->components_{component_name}.items.items - (uint8_t*)location;\n",
+          "  vecs_op_store_component_t store = {{.tmp_component = tmp_component, .location_offset = offset}};\n",
+          "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_component_{component_name}[e->state], .store_component = store}};\n",
+          "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+          "}}\n",
+          "vecs_tmp_id_t vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
+          "  vecs_tmp_id_t id = {{.index = e->ops_add_component.len}};\n",
+          "  {component_add_t} add = {{.entity = entity, .component = component}};\n",
+          "  vecs_op_union_add_component_t op = {{.apply = vecs_op_map_add_component_{component_name}[e->state], .add_{component_name} = add}};\n",
+          "  {op_add_component_queue_method_enqueue}(&e->ops_add_component, op);\n",
+          "  return id;\n",
+          "}}\n",
+          "vecs_tmp_id_t vecs_schedule_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t entity, {component_t} component) {{\n",
+          "  vecs_tmp_id_t id = {{.index = e->ops_add_component.len}};\n",
+          "  {component_add_tmp_t} add_tmp = {{.tmp_entity = entity, .component = component}};\n",
+          "  vecs_op_union_add_component_t op = {{.apply = vecs_op_map_tmp_add_component_{component_name}[e->state], .add_tmp_{component_name} = add_tmp}};\n",
+          "  {op_add_component_queue_method_enqueue}(&e->ops_add_component, op);\n",
+          "  return id;\n",
+          "}}\n",
+          "void vecs_schedule_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
+          "  vecs_op_enable_component_t enable = {{.entity = entity}};\n",
+          "  vecs_op_union_other_t op = {{.apply = vecs_op_map_enable_component_{component_name}[e->state], .enable = enable}};\n",
+          "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+          "}}\n",
+          "void vecs_schedule_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
+          "  {component_update_t} update = {{.entity = entity, .component = component}};\n",
+          "  vecs_op_union_other_t op = {{.apply = vecs_op_map_update_component_{component_name}[e->state], .update_{component_name} = update}};\n",
+          "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+          "}}\n",
+          "void vecs_schedule_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
+          "  vecs_op_remove_component_t remove = {{.entity = entity}};\n",
+          "  vecs_op_union_remove_component_t op = {{.apply = vecs_op_map_remove_component_{component_name}[e->state], .remove = remove}};\n",
+          "  {op_remove_component_queue_method_enqueue}(&e->ops_remove_component, op);\n",
+          "}}\n",
+          "void vecs_schedule_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
+          "  vecs_op_disable_component_t disable = {{.entity = entity}};\n",
+          "  vecs_op_union_other_t op = {{.apply = vecs_op_map_disable_component_{component_name}[e->state], .disable = disable}};\n",
+          "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+          "}}\n",
+        ),
+        component_name = component_name,
+        component_t = component_t,
+        component_add_t = ops.add_t,
+        component_add_tmp_t = ops.add_tmp_t,
+        component_update_t = ops.update_t,
+        op_add_component_queue_method_enqueue =
+          method_name!(&op_add_component_queue_t, "enqueue"),
+        op_other_queue_method_enqueue = method_name!(&op_other_queue_t, "enqueue"),
+        op_remove_component_queue_method_enqueue =
+          method_name!(&op_remove_component_queue_t, "enqueue"),
+      )?;
     }
 
     // Node getters:
@@ -484,6 +748,19 @@ impl<'a> Display for Impl<'a> {
     }
 
     for state in self.data.states.values() {
+      let state_id = StateIdName::new(state.name);
+
+      write!(
+        f,
+        concat!(
+          "void vecs_schedule_state_to_{state_name}(vecs_engine_t *e) {{\n",
+          "  e->next_state = {state_id};\n",
+          "}}\n\n",
+        ),
+        state_name = state.name,
+        state_id = state_id,
+      )?;
+
       // State transitions:
       for other_state in self.data.states.values() {
         if state.name == other_state.name {
@@ -493,16 +770,16 @@ impl<'a> Display for Impl<'a> {
         write!(
           f,
           "void vecs_state_{}_to_{}(vecs_engine_t *e) {{\n",
-          state.name, other_state.name,
+          other_state.name, state.name,
         )?;
 
-        let old_relevant_nodes = state
+        let old_relevant_nodes = other_state
           .nodes
           .iter()
           .map(|n| self.data.nodes.get(n).unwrap())
           .collect::<HashSet<_>>();
 
-        let new_relevant_nodes = other_state
+        let new_relevant_nodes = state
           .nodes
           .iter()
           .map(|n| self.data.nodes.get(n).unwrap())
@@ -591,14 +868,22 @@ impl<'a> Display for Impl<'a> {
           write!(f, concat!("continue_outer:\n", "    ;\n", "  }}\n",),)?;
         }
 
-        write!(f, "}}\n",)?;
+        write!(
+          f,
+          concat!("  e->state = {state_id};\n", "}}\n",),
+          state_id = state_id,
+        )?;
       }
 
       // State loops:
       write!(
         f,
-        "void vecs_run_state_{}(vecs_engine_t *e) {{\n",
-        state.name
+        concat!(
+          "void vecs_run_state_{state_name}(vecs_engine_t *e) {{\n",
+          "  e->state = {state_id};\n",
+        ),
+        state_name = state.name,
+        state_id = state_id,
       )?;
 
       for event in self.data.events.values() {
@@ -611,6 +896,7 @@ impl<'a> Display for Impl<'a> {
           concat!(
             "  while (e->events_{event_name}.len > 0) {{\n",
             "    {event_t} ev = {events_method_dequeue}(&e->events_{event_name});\n",
+            "    size_t nodes_len;\n",
           ),
           event_name = event.name,
           event_t = event_t,
@@ -632,7 +918,8 @@ impl<'a> Display for Impl<'a> {
                 f,
                 concat!(
                   "    {system_name}_init(e, ev);\n",
-                  "    for (size_t i = 0; i < e->nodes_{node_name}.len; ++i) {{\n",
+                  "    nodes_len = e->nodes_{node_name}.len;\n",
+                  "    for (size_t i = 0; i < nodes_len; ++i) {{\n",
                   "      {node_t} *node = &e->nodes_{node_name}.items[i];\n",
                   "      {system_name}(e, *node, ev);\n",
                   "    }}\n",
@@ -647,7 +934,48 @@ impl<'a> Display for Impl<'a> {
         write!(f, "  }}\n")?;
       }
 
-      write!(f, "}}\n")?;
+      write!(
+        f,
+        concat!(
+          "  vecs_id_t *new_things = NULL;\n",
+          "  size_t new_component_count = e->ops_add_component.len;\n",
+          "  size_t new_thing_count = e->entities_to_add + new_component_count;\n",
+          "\n",
+          "  if (new_thing_count > 0) {{\n",
+          "    new_things = malloc(new_thing_count * sizeof(vecs_id_t));\n",
+          "  }}\n",
+          "\n",
+          "  vecs_id_t *new_entities = new_things + 0;\n",
+          "  vecs_id_t *new_components = new_things + e->entities_to_add;\n",
+          "\n",
+          "  for (size_t i = 0; i < e->entities_to_add; ++i) {{\n",
+          "    new_entities[i] = vecs_add_entity(e);\n",
+          "  }}\n",
+          "\n",
+          "  for (size_t i = 0; i < new_component_count; ++i) {{\n",
+          "    vecs_op_union_add_component_t op = {op_add_component_queue_method_dequeue}(&e->ops_add_component);\n",
+          "    new_components[i] = op.apply(e, new_entities, op);\n",
+          "  }}\n",
+          "\n",
+          "  size_t ops_other_count = e->ops_other.len;\n",
+          "  for (size_t i = 0; i < ops_other_count; ++i) {{\n",
+          "    vecs_op_union_other_t op = {op_other_queue_method_dequeue}(&e->ops_other);\n",
+          "    op.apply(e, new_entities, new_components, op);\n",
+          "  }}\n",
+          "\n",
+          "  size_t remove_component_count = e->ops_remove_component.len;\n",
+          "  for (size_t i = 0; i < remove_component_count; ++i) {{\n",
+          "    vecs_op_union_remove_component_t op = {op_remove_component_queue_method_dequeue}(&e->ops_remove_component);\n",
+          "    op.apply(e, op);\n",
+          "  }}\n",
+          "}}\n",
+        ),
+        op_add_component_queue_method_dequeue =
+          method_name!(&op_add_component_queue_t, "dequeue"),
+        op_other_queue_method_dequeue = method_name!(&op_other_queue_t, "dequeue"),
+        op_remove_component_queue_method_dequeue =
+          method_name!(&op_remove_component_queue_t, "dequeue"),
+      )?;
     }
 
     // Event emition:

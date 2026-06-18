@@ -2,55 +2,65 @@ use std::fmt::Display;
 
 use derive_display_hash::DisplayHash;
 
-#[derive(Debug, Clone, DisplayHash)]
-pub struct EventStructName<'a> {
-  pub event_name: &'a str,
-}
+use crate::generate::generics::common::GenericElement;
 
-impl<'a> EventStructName<'a> {
-  pub fn new(name: &'a str) -> Self {
-    Self { event_name: name }
-  }
-}
-
-impl<'a> Display for EventStructName<'a> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "vecs_event_{}_t", self.event_name)
-  }
-}
-
-#[derive(Debug, Clone, DisplayHash)]
-pub struct ComponentStructName<'a> {
-  pub component_name: &'a str,
-}
-
-impl<'a> ComponentStructName<'a> {
-  pub fn new(name: &'a str) -> Self {
-    Self {
-      component_name: name,
+// A struct named $name that has one `name` field and implements Display with the
+// provided format string, where the name is the first positional argument. Construct
+// it with `$name::new(name)`.
+macro_rules! format_struct {
+  ($name:ident, $format:expr) => {
+    #[derive(Debug, Clone, DisplayHash)]
+    pub struct $name<T: Display> {
+      pub name: T,
     }
-  }
+
+    impl<T: Display> $name<T> {
+      pub fn new(name: T) -> Self {
+        Self { name: name }
+      }
+    }
+
+    impl<T: Display> Display for $name<T> {
+      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, $format, self.name)
+      }
+    }
+  };
 }
 
-impl<'a> Display for ComponentStructName<'a> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "vecs_component_{}_t", self.component_name)
-  }
+// Event:
+format_struct!(EventStructName, "vecs_event_{}_t");
+
+// Component:
+format_struct!(ComponentStructName, "vecs_component_{}_t");
+
+// Component deferred operations:
+format_struct!(ComponentOpAddStructName, "vecs_op_add_component_{}_t");
+format_struct!(
+  ComponentOpAddTmpStructName,
+  "vecs_op_tmp_add_component_{}_t"
+);
+format_struct!(ComponentOpUpdateStructName, "vecs_op_update_component_{}_t");
+
+// Node:
+format_struct!(NodeStructName, "vecs_node_{}_t");
+
+/// Helper to generate an instance of all of the component-specific operations at once:
+/// add, add_tmp & update.
+// TODO: Is this really helpful?
+#[derive(Clone)]
+pub struct ComponentTmpOps<T: GenericElement> {
+  pub add_t: ComponentOpAddStructName<T>,
+  pub add_tmp_t: ComponentOpAddTmpStructName<T>,
+  pub update_t: ComponentOpUpdateStructName<T>,
 }
 
-#[derive(Debug, Clone, DisplayHash)]
-pub struct NodeStructName<'a> {
-  pub node_name: &'a str,
-}
-
-impl<'a> NodeStructName<'a> {
-  pub fn new(name: &'a str) -> Self {
-    Self { node_name: name }
-  }
-}
-
-impl<'a> Display for NodeStructName<'a> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "vecs_node_{}_t", self.node_name)
+impl<T: GenericElement> ComponentTmpOps<T> {
+  pub fn new(name: T) -> Self {
+    Self {
+      add_t: ComponentOpAddStructName::new(name.clone()),
+      add_tmp_t: ComponentOpAddTmpStructName::new(name.clone()),
+      update_t: ComponentOpUpdateStructName::new(name.clone()),
+    }
   }
 }

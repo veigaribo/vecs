@@ -1,6 +1,15 @@
 use std::fmt::Display;
 
-use crate::{generate::generics::skip_lists::SkipList, resolve::cst::Cst};
+use crate::{
+  generate::{
+    common::{
+      ComponentOpAddStructName, ComponentOpAddTmpStructName,
+      ComponentOpUpdateStructName, ComponentTmpOps,
+    },
+    generics::skip_lists::SkipList,
+  },
+  resolve::cst::Cst,
+};
 
 use super::{
   common::{ComponentStructName, EventStructName, NodeStructName},
@@ -62,12 +71,20 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
-        "// Index and gen in one struct\n",
+        "// Index and gen in one struct. Used for permanent storage of entities and\n",
+        "// component references.\n",
         "typedef struct vecs_id {{\n",
         "  uint32_t index;\n",
         "  uint32_t gen;\n",
         "}} vecs_id_t;\n",
         "\n",
+        "// Used to temporarily refer to entities and components that have not yet\n",
+        "// been persisted, and so do not yet posses a permanent `vecs_id_t`.\n",
+        "typedef struct vecs_tmp_id {{\n",
+        "  uint32_t index;\n",
+        "}} vecs_tmp_id_t;\n",
+        "\n",
+        "// TODO: Remove this.\n",
         "typedef struct vecs_frame {{\n",
         "  float delta;\n",
         "  double runtime;\n",
@@ -102,6 +119,29 @@ impl<'a> Display for Header<'a> {
     let index_index_t = index_index.get_type();
     index_index.header().fmt(f)?;
 
+    write!(
+      f,
+      concat!(
+        "typedef struct vecs_op_store_entity {{\n",
+        "  vecs_tmp_id_t tmp_entity;\n",
+        "  ptrdiff_t location_offset;\n",
+        "}} vecs_op_store_entity_t;\n",
+        "typedef struct vecs_op_store_component {{\n",
+        "  vecs_tmp_id_t tmp_component;\n",
+        "  ptrdiff_t location_offset;\n",
+        "}} vecs_op_store_component_t;\n",
+        "typedef struct vecs_op_enable_component {{\n",
+        "  vecs_id_t entity;\n",
+        "}} vecs_op_enable_component_t;\n",
+        "typedef struct vecs_op_remove_component {{\n",
+        "  vecs_id_t entity;\n",
+        "}} vecs_op_remove_component_t;\n",
+        "typedef struct vecs_op_disable_component {{\n",
+        "  vecs_id_t entity;\n",
+        "}} vecs_op_disable_component_t;\n\n",
+      ),
+    )?;
+
     for component in self.data.components.values() {
       // Component struct:
       let component_name = component.name();
@@ -126,6 +166,32 @@ impl<'a> Display for Header<'a> {
       // Component sparse array:
       DynArray::new(component_t.clone()).header().fmt(f)?;
       SparseDynArray::new(component_t.clone()).header().fmt(f)?;
+
+      // Temporary component operations:
+      let ops = ComponentTmpOps::new(component_name);
+
+      write!(
+        f,
+        concat!(
+          "typedef struct vecs_op_add_component_{component_name} {{\n",
+          "  vecs_id_t entity;\n",
+          "  {component_t} component;\n",
+          "}} {component_add_t};\n",
+          "typedef struct vecs_op_tmp_add_component_{component_name} {{\n",
+          "  vecs_tmp_id_t tmp_entity;\n",
+          "  {component_t} component;\n",
+          "}} {component_add_tmp_t};\n",
+          "typedef struct vecs_op_update_component_{component_name} {{\n",
+          "  vecs_id_t entity;\n",
+          "  {component_t} component;\n",
+          "}} {component_update_t};\n",
+        ),
+        component_name = component_name,
+        component_t = component_t,
+        component_add_t = ops.add_t,
+        component_add_tmp_t = ops.add_tmp_t,
+        component_update_t = ops.update_t,
+      )?;
     }
 
     // State enum:
@@ -136,6 +202,95 @@ impl<'a> Display for Header<'a> {
       write!(f, "  {},\n", state_id)?;
     }
     write!(f, "}} vecs_state_t;\n\n",)?;
+
+    // Forward declare the engine struct so the operations can refer to it
+    write!(f, "struct vecs_engine;\n\n",)?;
+
+    // Deferred operation structs:
+
+    // These operations should be applied first
+    write!(
+      f,
+      concat!(
+        "typedef struct vecs_op_union_add_component {{\n",
+        "  vecs_id_t (*apply)(struct vecs_engine *, vecs_id_t *new_entities, struct vecs_op_union_add_component);\n",
+        "  union {{\n",
+      )
+    )?;
+
+    for component in self.data.components.values() {
+      let component_name = component.name();
+      let add_t = ComponentOpAddStructName::new(component_name);
+      let add_tmp_t = ComponentOpAddTmpStructName::new(component_name);
+
+      write!(
+        f,
+        concat!(
+          "    {add_t} add_{component_name};\n",
+          "    {add_tmp_t} add_tmp_{component_name};\n",
+        ),
+        component_name = component_name,
+        add_t = add_t,
+        add_tmp_t = add_tmp_t,
+      )?;
+    }
+    write!(
+      f,
+      concat!("  }};\n", "}} vecs_op_union_add_component_t;\n\n")
+    )?;
+
+    // These operations should be applied after start and before end, in no specified
+    // order
+    write!(
+      f,
+      concat!(
+        "typedef struct vecs_op_union_other {{\n",
+        "  void (*apply)(struct vecs_engine *, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, struct vecs_op_union_other);\n",
+        "  union {{\n",
+        "    vecs_op_store_entity_t store_entity;\n",
+        "    vecs_op_store_component_t store_component;\n",
+        "    vecs_op_enable_component_t enable;\n",
+        "    vecs_op_disable_component_t disable;\n",
+      )
+    )?;
+
+    for component in self.data.components.values() {
+      let component_name = component.name();
+      let update_t = ComponentOpUpdateStructName::new(component_name);
+
+      write!(
+        f,
+        concat!("    {update_t} update_{component_name};\n",),
+        component_name = component_name,
+        update_t = update_t,
+      )?;
+    }
+    write!(f, concat!("  }};\n", "}} vecs_op_union_other_t;\n\n"))?;
+
+    // These operations should be applied last
+    write!(
+      f,
+      concat!(
+        "typedef struct vecs_op_union_remove_component {{\n",
+        "  void (*apply)(struct vecs_engine *, struct vecs_op_union_remove_component);\n",
+        "  union {{\n",
+        "    vecs_op_remove_component_t remove;\n",
+        "  }};\n",
+        "}} vecs_op_union_remove_component_t;\n\n"
+      )
+    )?;
+
+    let op_add_component_queue = DynQueue::new("vecs_op_union_add_component_t");
+    let op_add_component_queue_t = op_add_component_queue.get_type();
+    op_add_component_queue.header().fmt(f)?;
+
+    let op_other_queue = DynQueue::new("vecs_op_union_other_t");
+    let op_other_queue_t = op_other_queue.get_type();
+    op_other_queue.header().fmt(f)?;
+
+    let op_remove_component_queue = DynQueue::new("vecs_op_union_remove_component_t");
+    let op_remove_component_queue_t = op_remove_component_queue.get_type();
+    op_remove_component_queue.header().fmt(f)?;
 
     for node in self.data.nodes.values() {
       // Node struct:
@@ -190,11 +345,21 @@ impl<'a> Display for Header<'a> {
       concat!(
         "// Engine.\n",
         "typedef struct vecs_engine {{\n",
-        "  // Currently unused.\n",
         "  vecs_state_t state;\n",
+        "\n",
+        "  // Deferred operations\n",
+        "  uint32_t entities_to_add;\n",
+        "  vecs_state_t next_state;\n",
+        "  {op_add_component_queue_t} ops_add_component;\n",
+        "  {op_remove_component_queue_t} ops_remove_component;\n",
+        "  {op_other_queue_t} ops_other;\n",
+        "\n",
         "  {entity_array_t} entities;\n",
       ),
       entity_array_t = entity_array_t,
+      op_add_component_queue_t = op_add_component_queue_t,
+      op_other_queue_t = op_other_queue_t,
+      op_remove_component_queue_t = op_remove_component_queue_t,
     )?;
 
     for component in self.data.components.values() {
@@ -282,16 +447,18 @@ impl<'a> Display for Header<'a> {
       concat!(
         "void vecs_init(vecs_engine_t *e);\n",
         "void vecs_destroy(vecs_engine_t *e);\n",
-        "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n"
+        "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n",
+        "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e);\n",
       ),
     )?;
 
     // Component manipulation:
     for component in self.data.components.values() {
-      for state in self.data.states.values() {
-        let component_name = component.name();
-        let component_t = ComponentStructName::new(component_name);
+      let component_name = component.name();
+      let component_t = ComponentStructName::new(component_name);
 
+      for state in self.data.states.values() {
+        // Immediate methods
         write!(
           f,
           concat!(
@@ -300,13 +467,30 @@ impl<'a> Display for Header<'a> {
             "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
             "bool vecs_{state_name}_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "void vecs_{state_name}_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
-            "void vecs_{state_name}_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n\n",
+            "void vecs_{state_name}_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
           ),
           state_name = state.name,
           component_name = component_name,
           component_t = component_t,
         )?;
       }
+
+      // Deferred methods
+      write!(
+        f,
+        concat!(
+          "void vecs_schedule_store_entity_in_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_entity, vecs_id_t *location);\n",
+          "void vecs_schedule_store_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_component, vecs_id_t *location);\n",
+          "vecs_tmp_id_t vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+          "vecs_tmp_id_t vecs_schedule_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t entity, {component_t} component);\n",
+          "void vecs_schedule_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+          "void vecs_schedule_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+          "void vecs_schedule_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+          "void vecs_schedule_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+        ),
+        component_name = component_name,
+        component_t = component_t,
+      )?;
     }
 
     // Node getters:
@@ -329,6 +513,12 @@ impl<'a> Display for Header<'a> {
     }
 
     for state in self.data.states.values() {
+      write!(
+        f,
+        "void vecs_schedule_state_to_{}(vecs_engine_t *e);\n",
+        state.name,
+      )?;
+
       // State transitions:
       for other_state in self.data.states.values() {
         if state.name == other_state.name {
@@ -338,7 +528,7 @@ impl<'a> Display for Header<'a> {
         write!(
           f,
           "void vecs_state_{}_to_{}(vecs_engine_t *e);\n",
-          state.name, other_state.name,
+          other_state.name, state.name,
         )?;
       }
 
