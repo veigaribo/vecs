@@ -968,6 +968,8 @@ impl<'a> Display for Impl<'a> {
           "    vecs_op_union_remove_component_t op = {op_remove_component_queue_method_dequeue}(&e->ops_remove_component);\n",
           "    op.apply(e, op);\n",
           "  }}\n",
+          "\n",
+          "  free(new_things);\n",
           "}}\n",
         ),
         op_add_component_queue_method_dequeue =
