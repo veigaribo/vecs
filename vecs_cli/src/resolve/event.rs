@@ -18,8 +18,8 @@ pub fn resolve_event<'src>(
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
-      if meta.cst.components.contains_key(name) {
-        let previous = meta.cst.components.get(name).unwrap();
+      if meta.cst.events.contains_key(name) {
+        let previous = meta.cst.events.get(name).unwrap();
 
         return Err(ResolveError::new(
           value.span,

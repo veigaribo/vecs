@@ -8,6 +8,8 @@ General:
   memory if needed;
 - Maybe allow operations such as updating and removing on temporary components, as
   well as on permanently stored ones, if that's found to be useful;
+- When creating the `new_things` array in the sync points, reuse memory instead of
+  allocating every time;
 - Get rid of default `frame` event;
 - Improve presentation of error messages (spans mainly);
 - Add methods that operate based on `engine->state` automatically for convenience;
