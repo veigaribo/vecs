@@ -20,6 +20,12 @@ pub struct TypeName<'src> {
   pub type_components: Vec<&'src str>,
 }
 
+impl<'src> TypeName<'src> {
+  pub fn is_empty(&self) -> bool {
+    self.type_components.is_empty()
+  }
+}
+
 impl<'src> TypeNameBuilder<'src> {
   pub fn add_type_component(&mut self, component: &'src str) {
     if let Some(ref mut components) = self.type_components {
@@ -51,6 +57,7 @@ impl<'src> std::hash::Hash for TypeName<'src> {
 pub struct Component<'src> {
   pub span: Span<'src>,
 
+  // Empty => marker
   pub typ: TypeName<'src>,
   // mask[i] & (1 << j)
   pub mask_i: u16,
@@ -60,6 +67,10 @@ pub struct Component<'src> {
 impl<'src> Component<'src> {
   pub fn name(&self) -> &'src str {
     self.typ.name
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.typ.type_components.is_empty()
   }
 }
 
@@ -76,6 +87,12 @@ pub struct Node<'src> {
   // it just means that all components afterwards are zero.
   #[builder(default = vec![])]
   pub mask: Vec<u64>,
+}
+
+impl<'src> Node<'src> {
+  pub fn is_empty(&self) -> bool {
+    self.components.iter().all(|c| c.is_empty())
+  }
 }
 
 impl<'src> PartialEq for Node<'src> {

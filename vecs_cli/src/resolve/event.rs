@@ -13,6 +13,7 @@ pub fn resolve_event<'src>(
 ) -> ResolveResult<'src, TypeName<'src>> {
   let mut s = TypeNameBuilder::default();
   s.span(meta.span);
+  s.type_components(vec![]);
 
   let maybe_value = values.pop_front();
 

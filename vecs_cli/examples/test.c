@@ -16,9 +16,9 @@ void move(vecs_engine_t *engine, vecs_node_move_t node,
 
   for (size_t i = 0; i < somethings.len; ++i) {
     vecs_node_something_t something = somethings.items[i];
-    vecs_component_render_t *r =
-        vecs_node_something_get_render(engine, something);
-    printf("something .texture: %d\n", r->texture);
+    // vecs_component_render_t *r =
+    //     vecs_node_something_get_render(engine, something);
+    printf("something\n");
   }
 }
 
@@ -29,11 +29,11 @@ void render_init(vecs_engine_t *engine, vecs_event_frame_t event) {
 void render(vecs_engine_t *engine, vecs_node_render_t node,
             vecs_event_frame_t event) {
   vecs_component_transform_t *t = vecs_node_render_get_transform(engine, node);
-  vecs_component_render_t *r = vecs_node_render_get_render(engine, node);
+  // vecs_component_render_t *r = vecs_node_render_get_render(engine, node);
 
   printf(
-      ".delta: %f, .runtime: %f, .frame: %lu, .x: %f, .y: %f, .texture: %d\n",
-      event.delta, event.runtime, event.frame, t->x, t->y, r->texture);
+      ".delta: %f, .runtime: %f, .frame: %lu, .x: %f, .y: %f\n",
+      event.delta, event.runtime, event.frame, t->x, t->y);
 }
 
 void click_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
@@ -43,10 +43,10 @@ void click_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
 void click(vecs_engine_t *engine, vecs_node_click_t node,
            vecs_event_mouse_click_t event) {
   vecs_component_layout_t *l = vecs_node_click_get_layout(engine, node);
-  vecs_component_render_t *r = vecs_node_click_get_render(engine, node);
+  // vecs_component_render_t *r = vecs_node_click_get_render(engine, node);
 
-  printf(".x: %f, .y: %f, .btn: %d, .mode: %d, .texture: %d\n", event.x,
-         event.x, event.button, l->mode, r->texture);
+  printf(".x: %f, .y: %f, .btn: %d, .mode: %d\n", event.x,
+         event.x, event.button, l->mode);
 }
 
 int main() {
@@ -65,8 +65,8 @@ int main() {
   vecs_main_enable_component_transform(&e, ent1);
   printf("4 has transform %d; ", vecs_has_component_transform(&e, ent1));
 
-  vecs_component_render_t r1 = {.texture = 6};
-  vecs_main_add_component_render(&e, ent1, r1);
+  // vecs_component_render_t r1 = {.texture = 6};
+  vecs_main_add_component_render(&e, ent1);
 
   vecs_component_layout_t l1 = {.mode = 4};
   vecs_main_add_component_layout(&e, ent1, l1);
@@ -89,14 +89,14 @@ int main() {
   printf("  add render\n");
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
-  vecs_main_add_component_render(&e, ent1, r1);
+  vecs_main_add_component_render(&e, ent1);
   vecs_run_state_main(&e);
 
   printf("  update render\n");
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
-  r1.texture = 25;
-  vecs_main_update_component_render(&e, ent1, r1);
+  t1.x = 2.5;
+  vecs_main_update_component_transform(&e, ent1, t1);
   vecs_run_state_main(&e);
 
   printf("  main -> menu\n");

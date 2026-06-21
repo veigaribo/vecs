@@ -3,7 +3,7 @@
 include "test.h";
 
 component transform struct transform;
-component render struct render;
+component render;
 
 event mouse_click mouse_click_t;
 

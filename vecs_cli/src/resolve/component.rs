@@ -13,6 +13,7 @@ pub fn resolve_component<'src>(
 ) -> ResolveResult<'src, TypeName<'src>> {
   let mut s = TypeNameBuilder::default();
   s.span(meta.span);
+  s.type_components(vec![]);
 
   let maybe_value = values.pop_front();
 
@@ -41,13 +42,6 @@ pub fn resolve_component<'src>(
     return Err(ResolveError::new(
       meta.span,
       "a component tag must be followed by the component name",
-    ));
-  }
-
-  if values.is_empty() {
-    return Err(ResolveError::new(
-      meta.span,
-      format!("component {} is missing its type", s.name.unwrap()),
     ));
   }
 

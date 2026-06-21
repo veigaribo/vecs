@@ -104,8 +104,12 @@ impl<'a> Display for Header<'a> {
 
       write!(f, "// Event `{}`.\ntypedef ", event.name,)?;
 
-      let event_type_name_iter = event.type_components.iter();
-      write_iterator(f, event_type_name_iter)?;
+      if !event.is_empty() {
+        let event_type_name_iter = event.type_components.iter();
+        write_iterator(f, event_type_name_iter)?;
+      } else {
+        write!(f, "struct {{}}")?;
+      }
 
       write!(f, " {};\n\n", event_t)?;
 
@@ -149,8 +153,12 @@ impl<'a> Display for Header<'a> {
 
       write!(f, "// Component `{}`.\ntypedef ", component_name)?;
 
-      let component_type_name_iter = component.typ.type_components.iter();
-      write_iterator(f, component_type_name_iter)?;
+      if !component.is_empty() {
+        let component_type_name_iter = component.typ.type_components.iter();
+        write_iterator(f, component_type_name_iter)?;
+      } else {
+        write!(f, "struct {{}}")?;
+      }
 
       write!(f, " {};\n\n", component_t)?;
 
@@ -163,35 +171,54 @@ impl<'a> Display for Header<'a> {
         ComponentMask::from_component(component, self.data.node_mask_arr_size),
       )?;
 
-      // Component sparse array:
-      DynArray::new(component_t.clone()).header().fmt(f)?;
-      SparseDynArray::new(component_t.clone()).header().fmt(f)?;
+      if !component.is_empty() {
+        // Component sparse array:
+        DynArray::new(component_t.clone()).header().fmt(f)?;
+        SparseDynArray::new(component_t.clone()).header().fmt(f)?;
+      }
 
       // Temporary component operations:
       let ops = ComponentTmpOps::new(component_name);
 
-      write!(
-        f,
-        concat!(
-          "typedef struct vecs_op_add_component_{component_name} {{\n",
-          "  vecs_id_t entity;\n",
-          "  {component_t} component;\n",
-          "}} {component_add_t};\n",
-          "typedef struct vecs_op_tmp_add_component_{component_name} {{\n",
-          "  vecs_tmp_id_t tmp_entity;\n",
-          "  {component_t} component;\n",
-          "}} {component_add_tmp_t};\n",
-          "typedef struct vecs_op_update_component_{component_name} {{\n",
-          "  vecs_id_t entity;\n",
-          "  {component_t} component;\n",
-          "}} {component_update_t};\n",
-        ),
-        component_name = component_name,
-        component_t = component_t,
-        component_add_t = ops.add_t,
-        component_add_tmp_t = ops.add_tmp_t,
-        component_update_t = ops.update_t,
-      )?;
+      if !component.is_empty() {
+        write!(
+          f,
+          concat!(
+            "typedef struct vecs_op_add_component_{component_name} {{\n",
+            "  vecs_id_t entity;\n",
+            "  {component_t} component;\n",
+            "}} {component_add_t};\n",
+            "typedef struct vecs_op_tmp_add_component_{component_name} {{\n",
+            "  vecs_tmp_id_t tmp_entity;\n",
+            "  {component_t} component;\n",
+            "}} {component_add_tmp_t};\n",
+            "typedef struct vecs_op_update_component_{component_name} {{\n",
+            "  vecs_id_t entity;\n",
+            "  {component_t} component;\n",
+            "}} {component_update_t};\n",
+          ),
+          component_name = component_name,
+          component_t = component_t,
+          component_add_t = ops.add_t,
+          component_add_tmp_t = ops.add_tmp_t,
+          component_update_t = ops.update_t,
+        )?;
+      } else {
+        write!(
+          f,
+          concat!(
+            "typedef struct vecs_op_add_component_{component_name} {{\n",
+            "  vecs_id_t entity;\n",
+            "}} {component_add_t};\n",
+            "typedef struct vecs_op_tmp_add_component_{component_name} {{\n",
+            "  vecs_tmp_id_t tmp_entity;\n",
+            "}} {component_add_tmp_t};\n",
+          ),
+          component_name = component_name,
+          component_add_t = ops.add_t,
+          component_add_tmp_t = ops.add_tmp_t,
+        )?;
+      }
     }
 
     // State enum:
@@ -256,14 +283,17 @@ impl<'a> Display for Header<'a> {
 
     for component in self.data.components.values() {
       let component_name = component.name();
-      let update_t = ComponentOpUpdateStructName::new(component_name);
 
-      write!(
-        f,
-        concat!("    {update_t} update_{component_name};\n",),
-        component_name = component_name,
-        update_t = update_t,
-      )?;
+      if !component.is_empty() {
+        let update_t = ComponentOpUpdateStructName::new(component_name);
+
+        write!(
+          f,
+          concat!("    {update_t} update_{component_name};\n",),
+          component_name = component_name,
+          update_t = update_t,
+        )?;
+      }
     }
     write!(f, concat!("  }};\n", "}} vecs_op_union_other_t;\n\n"))?;
 
@@ -296,6 +326,7 @@ impl<'a> Display for Header<'a> {
       // Node struct:
       let node_t = NodeStructName::new(node.name);
 
+      // TODO: Add entity ID
       write!(f, "// Node `{}`.\n\n", node.name)?;
       write!(
         f,
@@ -303,8 +334,16 @@ impl<'a> Display for Header<'a> {
         whatever_name!("node", node.name),
       )?;
 
-      for component in node.components.iter() {
-        write!(f, "  uint32_t {}_index;\n", *component)?;
+      for component_name in node.components.iter() {
+        let component = self
+          .data
+          .components
+          .get(component_name)
+          .expect("component not found");
+
+        if !component.is_empty() {
+          write!(f, "  uint32_t {}_index;\n", *component_name)?;
+        }
       }
       write!(f, "}} {};\n\n", node_t)?;
 
@@ -363,18 +402,20 @@ impl<'a> Display for Header<'a> {
     )?;
 
     for component in self.data.components.values() {
-      let component_name = component.name();
-      let component_t = ComponentStructName::new(component_name);
+      if !component.is_empty() {
+        let component_name = component.name();
+        let component_t = ComponentStructName::new(component_name);
 
-      let dyn_array = SparseDynArray::new(component_t.clone());
-      let dyn_array_t = dyn_array.get_type();
+        let dyn_array = SparseDynArray::new(component_t.clone());
+        let dyn_array_t = dyn_array.get_type();
 
-      write!(f, "  {} components_{};\n", dyn_array_t, component_name)?;
-      write!(
-        f,
-        "  {} entity_to_component_{};\n",
-        index_index_t, component_name,
-      )?;
+        write!(f, "  {} components_{};\n", dyn_array_t, component_name)?;
+        write!(
+          f,
+          "  {} entity_to_component_{};\n",
+          index_index_t, component_name,
+        )?;
+      }
     }
 
     for node in self.data.nodes.values() {
@@ -400,25 +441,33 @@ impl<'a> Display for Header<'a> {
     for node in self.data.nodes.values() {
       let node_t = NodeStructName::new(node.name);
 
-      for component in node.components.iter() {
-        let component_t = ComponentStructName::new(component);
-        let component_array = SparseDynArray::new(component_t.clone());
-        let component_array_t = component_array.get_type();
+      for component_name in node.components.iter() {
+        let component = self
+          .data
+          .components
+          .get(component_name)
+          .expect("component not found");
 
-        write!(
-          f,
-          concat!(
-            "static inline {component_t} *vecs_node_{node_name}_get_{component_name}(vecs_engine_t *e, {node_t} node) {{\n",
-            "  return {component_array_method_get_unchecked}(&e->components_{component_name}, node.{component_name}_index);\n",
-            "}}\n",
-          ),
-          component_t = component_t,
-          node_name = node.name,
-          component_name = component,
-          node_t = node_t,
-          component_array_method_get_unchecked =
-            method_name!(&component_array_t, "get_unchecked"),
-        )?;
+        if !component.is_empty() {
+          let component_t = ComponentStructName::new(component_name);
+          let component_array = SparseDynArray::new(component_t.clone());
+          let component_array_t = component_array.get_type();
+
+          write!(
+            f,
+            concat!(
+              "static inline {component_t} *vecs_node_{node_name}_get_{component_name}(vecs_engine_t *e, {node_t} node) {{\n",
+              "  return {component_array_method_get_unchecked}(&e->components_{component_name}, node.{component_name}_index);\n",
+              "}}\n",
+            ),
+            component_t = component_t,
+            node_name = node.name,
+            component_name = component_name,
+            node_t = node_t,
+            component_array_method_get_unchecked =
+              method_name!(&component_array_t, "get_unchecked"),
+          )?;
+        }
       }
     }
 
@@ -463,16 +512,37 @@ impl<'a> Display for Header<'a> {
           f,
           concat!(
             "bool vecs_has_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
-            "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
-            "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
-            "bool vecs_{state_name}_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "void vecs_{state_name}_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "void vecs_{state_name}_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
           ),
           state_name = state.name,
           component_name = component_name,
-          component_t = component_t,
         )?;
+
+        if !component.is_empty() {
+          write!(
+            f,
+            concat!(
+              "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+              "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+              "bool vecs_{state_name}_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+            ),
+            state_name = state.name,
+            component_name = component_name,
+            component_t = component_t,
+          )?;
+        } else {
+          // Component is empty
+          write!(
+            f,
+            concat!(
+              "void vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+              "void vecs_{state_name}_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+            ),
+            state_name = state.name,
+            component_name = component_name,
+          )?;
+        }
       }
 
       // Deferred methods
@@ -481,16 +551,35 @@ impl<'a> Display for Header<'a> {
         concat!(
           "void vecs_schedule_store_entity_in_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_entity, vecs_id_t *location);\n",
           "void vecs_schedule_store_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_component, vecs_id_t *location);\n",
-          "vecs_tmp_id_t vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
-          "vecs_tmp_id_t vecs_schedule_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t entity, {component_t} component);\n",
-          "void vecs_schedule_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
           "void vecs_schedule_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
           "void vecs_schedule_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
           "void vecs_schedule_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
         ),
         component_name = component_name,
-        component_t = component_t,
       )?;
+
+      if !component.is_empty() {
+        write!(
+          f,
+          concat!(
+            "vecs_tmp_id_t vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+            "vecs_tmp_id_t vecs_schedule_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t entity, {component_t} component);\n",
+            "void vecs_schedule_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+          ),
+          component_name = component_name,
+          component_t = component_t,
+        )?;
+      } else {
+        // Component is empty
+        write!(
+          f,
+          concat!(
+            "void vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+            "void vecs_schedule_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t entity);\n",
+          ),
+          component_name = component_name,
+        )?;
+      }
     }
 
     // Node getters:
