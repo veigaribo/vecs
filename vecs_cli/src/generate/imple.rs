@@ -320,6 +320,7 @@ impl<'a> Display for Impl<'a> {
       write!(
         f,
         concat!(
+          "// Currently, this method will not detect disabled components.\n",
           "bool vecs_has_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
           "  vecs_entity_t *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
           "  return match_mask(ent->mask, {component_mask_name});\n",
@@ -365,22 +366,36 @@ impl<'a> Display for Impl<'a> {
           )?;
         }
 
+        // Upsert components:
+        if !component.is_empty() {
+          write!(
+            f,
+            concat!(
+              "vecs_id_t vecs_{state_name}_upsert_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
+              "  if (vecs_has_component_{component_name}(e, entity)) {{\n",
+              "    return vecs_{state_name}_update_component_{component_name}(e, entity, component);\n",
+              "  }} else {{\n",
+              "    return vecs_{state_name}_add_component_{component_name}(e, entity, component);\n",
+              "  }}\n",
+              "}}\n",
+            ),
+            state_name = state.name,
+            component_name = component_name,
+            component_t = component_t,
+          )?;
+        }
+
         // Update components:
         if !component.is_empty() {
           write!(
             f,
             concat!(
               "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
-              "  vecs_id_t component_id;\n",
-              "  if (vecs_has_component_{component_name}(e, entity)) {{\n",
-              "    uint32_t component_index;\n",
-              "    {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
-              "    {component_t} *found = {component_array_method_get_unchecked}(&e->components_{component_name}, component_index);\n",
-              "    *found = component;\n",
-              "  }} else {{\n",
-              "    vecs_{state_name}_add_component_{component_name}(e, entity, component);\n",
-              "  }}\n",
-              "  return component_id;\n",
+              "  uint32_t component_index;\n",
+              "  {entity_to_component_array_method_get}(&e->entity_to_component_{component_name}, entity, &component_index);\n",
+              "  {component_t} *found = {component_array_method_get_unchecked}(&e->components_{component_name}, component_index);\n",
+              "  *found = component;\n",
+              "  return (vecs_id_t){{.index = component_index, .gen = e->components_{component_name}.gens.items[component_index]}};\n",
               "}}\n",
             ),
             state_name = state.name,
@@ -435,6 +450,8 @@ impl<'a> Display for Impl<'a> {
         write!(
           f,
           concat!(
+            "// A disabled component will not produce nodes and will not be a part of the entity mask.\n",
+            "// It will however be found in the entity_to_component index.\n",
             "void vecs_{state_name}_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity) {{\n",
             "  vecs_entity_t *ent = {entity_array_method_get}(&e->entities, entity.index, entity.gen);\n",
           ),
