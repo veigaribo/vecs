@@ -377,6 +377,22 @@ impl<'a> Display for Header<'a> {
 
     entity_array.header().fmt(f)?;
 
+    // Global struct:
+
+    write!(
+      f,
+      concat!("// Globals.\n", "typedef struct vecs_globals {{\n",),
+    )?;
+
+    for global in self.data.globals.values() {
+      write!(f, "  ")?;
+      let event_type_name_iter = global.type_components.iter();
+      write_iterator(f, event_type_name_iter)?;
+      write!(f, " {};\n", global.name)?;
+    }
+
+    write!(f, "}} vecs_globals_t;\n\n")?;
+
     // Main "engine" struct:
 
     write!(
@@ -385,6 +401,7 @@ impl<'a> Display for Header<'a> {
         "// Engine.\n",
         "typedef struct vecs_engine {{\n",
         "  vecs_state_t state;\n",
+        "  vecs_globals_t globals;\n",
         "\n",
         "  // Deferred operations\n",
         "  uint32_t entities_to_add;\n",

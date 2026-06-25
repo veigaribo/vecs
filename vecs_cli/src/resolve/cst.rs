@@ -187,6 +187,7 @@ impl<'src> StateBuilder<'src> {
 #[derive(Debug, Clone, Default)]
 pub struct Cst<'src> {
   pub includes: Vec<StringKind>,
+  pub globals: HashMap<&'src str, TypeName<'src>>,
   // pub settings: Settings,
   pub components: HashMap<&'src str, Component<'src>>,
   pub events: HashMap<&'src str, TypeName<'src>>,
@@ -199,9 +200,9 @@ pub struct Cst<'src> {
   pub states: BTreeMap<&'src str, State<'src>>,
 }
 
-// These methods do not check for errors (e.g. a non-existant component in a node or
-// system) because it's usually more efficient to check for such things in the middle
-// of resolution.
+// These methods do not check for errors (e.g. a non-existent component in a node or
+// system) because it's usually more efficient to check for such things during
+// resolution.
 impl<'src> Cst<'src> {
   pub fn add_include(&mut self, include: StringKind) {
     self.includes.push(include);
@@ -261,5 +262,9 @@ impl<'src> Cst<'src> {
     }
 
     self.states.insert(state.name, state);
+  }
+
+  pub fn add_global(&mut self, global: TypeName<'src>) {
+    self.globals.insert(global.name, global);
   }
 }

@@ -1,6 +1,7 @@
 pub mod component;
 pub mod cst;
 pub mod event;
+pub mod global;
 pub mod include;
 pub mod node;
 pub mod result;
@@ -18,6 +19,7 @@ use crate::{
     component::resolve_component,
     cst::Cst,
     event::resolve_event,
+    global::resolve_global,
     include::resolve_include,
     result::{ResolveError, ResolveResult},
     state::resolve_state,
@@ -80,6 +82,9 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
       } else if car.kind == ValueKind::Symbol("include") {
         let include = resolve_include(info, els)?;
         cst.add_include(include);
+      } else if car.kind == ValueKind::Symbol("global") {
+        let global = resolve_global(info, els)?;
+        cst.add_global(global);
       } else if car.kind == ValueKind::Symbol("set") {
         resolve_setting(info.span, els, &mut cst)?;
       } else if let ValueKind::Symbol(_) = car.kind {

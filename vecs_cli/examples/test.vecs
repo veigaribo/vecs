@@ -2,6 +2,8 @@
 
 include "test.h";
 
+global counter uint64_t;
+
 component transform struct transform;
 component render;
 
