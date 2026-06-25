@@ -565,6 +565,7 @@ impl<'a> Display for Header<'a> {
           concat!(
             "vecs_tmp_id_t vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
             "vecs_tmp_id_t vecs_schedule_tmp_add_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t entity, {component_t} component);\n",
+            "void vecs_schedule_upsert_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
             "void vecs_schedule_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
           ),
           component_name = component_name,

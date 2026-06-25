@@ -69,7 +69,7 @@ int main() {
   vecs_main_add_component_render(&e, ent1);
 
   vecs_component_layout_t l1 = {.mode = 4};
-  vecs_main_add_component_layout(&e, ent1, l1);
+  vecs_main_upsert_component_layout(&e, ent1, l1);
 
   vecs_event_mouse_click_t mc1 = {.x = 0.5, .y = 0.328, .button = 2};
   vecs_emit_mouse_click(&e, mc1);
