@@ -490,20 +490,32 @@ impl<'a> Display for Header<'a> {
 
     for system in self.data.systems.values() {
       // System function:
-      let node_t = NodeStructName::new(system.node);
       let event_t = EventStructName::new(system.event);
 
-      write!(
-        f,
-        concat!(
-          "// System `{system_name}`.\n",
-          "void {system_name}_init(vecs_engine_t *engine, {event_t} event);\n",
-          "void {system_name}(vecs_engine_t *engine, {node_t} node, {event_t} event);\n"
-        ),
-        system_name = system.name,
-        node_t = node_t,
-        event_t = event_t,
-      )?;
+      if let Some(node) = system.node {
+        let node_t = NodeStructName::new(node);
+
+        write!(
+          f,
+          concat!(
+            "// System `{system_name}`.\n",
+            "void {system_name}(vecs_engine_t *engine, {node_t} node, {event_t} event);\n"
+          ),
+          system_name = system.name,
+          node_t = node_t,
+          event_t = event_t,
+        )?;
+      } else {
+        write!(
+          f,
+          concat!(
+            "// System singleton `{system_name}`.\n",
+            "void {system_name}(vecs_engine_t *engine, {event_t} event);\n"
+          ),
+          system_name = system.name,
+          event_t = event_t,
+        )?;
+      }
     }
 
     // Engine methods:

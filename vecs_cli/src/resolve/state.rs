@@ -83,11 +83,11 @@ pub fn resolve_state<'src>(
               }
 
               got_systems = true;
-              let systems = resolve_state_systems(meta, values)?;
+              let (systems, system_nodes) = resolve_state_systems(meta, values)?;
 
               // Add system nodes
-              for system in systems.iter().flatten() {
-                s.add_node(system);
+              for node in system_nodes.iter() {
+                s.add_node(node);
               }
 
               s.systems(systems);
@@ -136,7 +136,7 @@ fn resolve_state_nodes<'src>(
   meta: ResolveMeta<'src, '_>,
   cdr: VecDeque<Value<'src>>,
 ) -> ResolveResult<'src, Vec<&'src str>> {
-  let mut ss = Vec::<&'src str>::new();
+  let mut sn = Vec::<&'src str>::new();
   let maybe_value = cdr.get(0);
 
   if let Some(value) = maybe_value {
@@ -148,7 +148,7 @@ fn resolve_state_nodes<'src>(
           if let Some(value) = maybe_value {
             if let ValueKind::Symbol(name) = value.kind {
               if meta.cst.nodes.contains_key(name) {
-                ss.push(name);
+                sn.push(name);
               } else {
                 return Err(ResolveError::new(
                   value.span,
@@ -189,14 +189,16 @@ fn resolve_state_nodes<'src>(
     ));
   }
 
-  Ok(ss)
+  Ok(sn)
 }
 
+// Returns the list of systems and the list of nodes that derive from those systems.
 fn resolve_state_systems<'src>(
   meta: ResolveMeta<'src, '_>,
   cdr: VecDeque<Value<'src>>,
-) -> ResolveResult<'src, Vec<Vec<&'src str>>> {
+) -> ResolveResult<'src, (Vec<Vec<&'src str>>, Vec<&'src str>)> {
   let mut ss = Vec::<Vec<&'src str>>::new();
+  let mut sn = Vec::<&'src str>::new();
   let maybe_value = cdr.get(0);
 
   if let Some(value) = maybe_value {
@@ -230,8 +232,13 @@ fn resolve_state_systems<'src>(
                 let value = &values[0];
 
                 if let ValueKind::Symbol(name) = value.kind {
-                  if meta.cst.systems.contains_key(name) {
+                  let maybe_system = meta.cst.systems.get(name);
+                  if let Some(system) = maybe_system {
                     s.push(name);
+
+                    if let Some(node) = system.node {
+                      sn.push(node);
+                    }
                   } else {
                     return Err(ResolveError::new(
                       value.span,
@@ -284,76 +291,5 @@ fn resolve_state_systems<'src>(
     ));
   }
 
-  Ok(ss)
+  Ok((ss, sn))
 }
-
-// fn resolve_options<'src, 'b>(
-//   meta: ResolveMeta<'src, '_, '_>,
-//   args: &'b [Value<'src>],
-// ) -> ResolveResult<'src, HashMap<&'src str, &'b Value<'src>>> {
-//   let mut opts = HashMap::new();
-//   let arg1 = args.get(0);
-//
-//   if let Some(arg1) = arg1 {
-//     if let ValueKind::List(ref inner) = arg1.kind {
-//       for app in inner {
-//         if let ValueKind::Application(ref inner) = app.kind {
-//           let arg1 = inner.get(0);
-//
-//           let name: &'src str;
-//
-//           if let Some(arg1) = arg1 {
-//             if let ValueKind::Symbol(content) = arg1.kind {
-//               name = content;
-//             } else {
-//               return Err(ResolveError::new(
-//                 arg1.span,
-//                 format!("option name must be a symbol. instead found {}", arg1,),
-//               ));
-//             }
-//
-//             let arg2 = inner.get(1);
-//
-//             if let Some(arg2) = arg2 {
-//               opts.insert(name, arg2);
-//             } else {
-//               return Err(ResolveError::new(
-//                 app.span,
-//                 "option name should be followed by its value",
-//               ));
-//             }
-//           } else {
-//             return Err(ResolveError::new(
-//               app.span,
-//               "option entry should start with its name",
-//             ));
-//           }
-//         } else {
-//           panic!(
-//             "malformed ast: root expression is not an application. this is a bug.\n{}",
-//             meta.ast,
-//           );
-//         }
-//       }
-//     } else {
-//       if let ValueKind::Symbol(_) = arg1.kind {
-//         return Err(ResolveError::new(
-//           arg1.span,
-//           format!(
-//             "expected options but found {} instead. maybe you forgot a semicolon?",
-//             arg1,
-//           ),
-//         ));
-//       }
-//
-//       return Err(ResolveError::new(
-//         arg1.span,
-//         format!("options must be a list. instead found {}", arg1,),
-//       ));
-//     }
-//   } else {
-//     return Err(ResolveError::new(meta.span, "options must be a list"));
-//   }
-//
-//   Ok(opts)
-// }

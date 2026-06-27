@@ -73,9 +73,12 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
         let node = resolve_node(info, els)?;
         cst.add_node(node);
       } else if car.kind == ValueKind::Symbol("system") {
-        let (system, node) = resolve_system(info, els)?;
+        let (system, maybe_node) = resolve_system(info, els)?;
         cst.add_system(system);
-        cst.add_node(node);
+
+        if let Some(node) = maybe_node {
+          cst.add_node(node);
+        }
       } else if car.kind == ValueKind::Symbol("state") {
         let state = resolve_state(info, els)?;
         cst.add_state(state);

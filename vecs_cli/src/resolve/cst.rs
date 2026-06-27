@@ -11,6 +11,7 @@ use crate::{common::StringKind, parse::data::str::Span};
 
 #[derive(Debug, Clone, Builder)]
 pub struct TypeName<'src> {
+  #[builder(field(vis = "pub"))]
   pub span: Span<'src>,
 
   #[builder(field(vis = "pub"))]
@@ -55,12 +56,17 @@ impl<'src> std::hash::Hash for TypeName<'src> {
 
 #[derive(Debug, Clone, Builder)]
 pub struct Component<'src> {
+  #[builder(field(vis = "pub"))]
   pub span: Span<'src>,
 
   // Empty => marker
+  #[builder(field(vis = "pub"))]
   pub typ: TypeName<'src>,
+
   // mask[i] & (1 << j)
+  #[builder(field(vis = "pub"))]
   pub mask_i: u16,
+  #[builder(field(vis = "pub"))]
   pub mask_j: u8,
 }
 
@@ -78,14 +84,16 @@ impl<'src> Component<'src> {
 
 #[derive(Debug, Clone, Builder, Hash)]
 pub struct Node<'src> {
+  #[builder(field(vis = "pub"))]
   pub span: Span<'src>,
-
+  #[builder(field(vis = "pub"))]
   pub name: &'src str,
+  #[builder(field(vis = "pub"))]
   pub components: BTreeSet<&'src str>,
 
   // This vec having `n` elements does not mean the final mask will have `n` elements;
   // it just means that all components afterwards are zero.
-  #[builder(default = vec![])]
+  #[builder(default = vec![], field(vis = "pub"))]
   pub mask: Vec<u64>,
 }
 
@@ -124,15 +132,20 @@ impl<'src> NodeBuilder<'src> {
 
 #[derive(Debug, Clone, Builder)]
 pub struct System<'src> {
+  #[builder(field(vis = "pub"))]
   pub span: Span<'src>,
-
+  #[builder(field(vis = "pub"))]
   pub name: &'src str,
+  #[builder(field(vis = "pub"))]
   pub event: &'src str,
-  pub node: &'src str,
+
+  // If there is no node, the system is a singleton.
+  #[builder(field(vis = "pub"))]
+  pub node: Option<&'src str>,
 
   // The amount of states this system is in. We use this to show a warning in case
   // there are zero (this system is not used at all).
-  #[builder(default = 0)]
+  #[builder(default = 0, field(vis = "pub"))]
   pub in_state_count: usize,
 }
 
@@ -140,6 +153,7 @@ pub struct System<'src> {
 
 #[derive(Debug, Clone, Builder, Hash)]
 pub struct State<'src> {
+  #[builder(field(vis = "pub"))]
   pub span: Span<'src>,
 
   #[builder(field(vis = "pub"))]

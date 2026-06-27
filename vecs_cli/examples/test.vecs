@@ -9,15 +9,18 @@ component render;
 
 event mouse_click mouse_click_t;
 
+system move_init on mouse_click;
 system move on mouse_click { transform };
+
+system render_init;
 system render { transform; render };
 
 node something { render };
 
 state main {
   systems {
-    { move };
-    { render };
+    { move_init, move };
+    { render_init, render };
   };
 
   nodes { something };
@@ -29,6 +32,6 @@ system click on mouse_click { layout; render };
 
 state menu {
   systems {
-    { move; click };
+    { move_init, move, click };
   };
 };

@@ -1080,22 +1080,25 @@ impl<'a> Display for Impl<'a> {
               .expect("failed to find system in state");
 
             if system.event == event.name {
-              let node_t = NodeStructName::new(system.node);
+              if let Some(node) = system.node {
+                let node_t = NodeStructName::new(node);
 
-              write!(
-                f,
-                concat!(
-                  "    {system_name}_init(e, ev);\n",
-                  "    nodes_len = e->nodes_{node_name}.len;\n",
-                  "    for (size_t i = 0; i < nodes_len; ++i) {{\n",
-                  "      {node_t} *node = &e->nodes_{node_name}.items[i];\n",
-                  "      {system_name}(e, *node, ev);\n",
-                  "    }}\n",
-                ),
-                node_name = system.node,
-                node_t = node_t,
-                system_name = system.name,
-              )?;
+                write!(
+                  f,
+                  concat!(
+                    "    nodes_len = e->nodes_{node_name}.len;\n",
+                    "    for (size_t i = 0; i < nodes_len; ++i) {{\n",
+                    "      {node_t} *node = &e->nodes_{node_name}.items[i];\n",
+                    "      {system_name}(e, *node, ev);\n",
+                    "    }}\n",
+                  ),
+                  node_name = node,
+                  node_t = node_t,
+                  system_name = system.name,
+                )?;
+              } else {
+                write!(f, "    {system_name}(e, ev);\n", system_name = system.name)?;
+              }
             }
           }
         }

@@ -36,10 +36,6 @@ void render(vecs_engine_t *engine, vecs_node_render_t node,
       event.delta, event.runtime, event.frame, t->x, t->y);
 }
 
-void click_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
-  printf("starting system click\n");
-}
-
 void click(vecs_engine_t *engine, vecs_node_click_t node,
            vecs_event_mouse_click_t event) {
   vecs_component_layout_t *l = vecs_node_click_get_layout(engine, node);
