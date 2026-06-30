@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+typedef struct vecs_engine vecs_engine_t;
+
 // Index and gen in one struct. Used for permanent storage of entities and
 // component references.
 typedef struct vecs_id {
