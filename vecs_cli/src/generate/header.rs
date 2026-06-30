@@ -540,6 +540,7 @@ impl<'a> Display for Header<'a> {
           write!(
             f,
             concat!(
+              "{component_t} *vecs_get_component_{component_name}(vecs_engine_t *e, vecs_id_t component_id);\n",
               "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
               "vecs_id_t vecs_{state_name}_upsert_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
               "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",

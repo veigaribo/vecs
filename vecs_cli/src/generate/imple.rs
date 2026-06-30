@@ -331,6 +331,20 @@ impl<'a> Display for Impl<'a> {
         component_mask_name = component_mask_name,
       )?;
 
+      if !component.is_empty() {
+        write!(
+          f,
+          concat!(
+            "{component_t} *vecs_get_component_{component_name}(vecs_engine_t *e, vecs_id_t component_id) {{\n",
+            "  return {component_array_method_get}(&e->components_{component_name}, component_id.index, component_id.gen);\n",
+            "}}\n",
+          ),
+          component_name = component_name,
+          component_t = component_t,
+          component_array_method_get = method_name!(&component_array_t, "get"),
+        )?;
+      }
+
       for state in self.data.states.values() {
         // Add components:
         if !component.is_empty() {
