@@ -12,8 +12,6 @@ General:
 - Get rid of default `frame` event;
 - Improve presentation of error messages (spans mainly);
 - Add methods that operate based on `engine->state` automatically for convenience;
-- Add `singleton` systems that runs once per specified event, with no relation to any
-  node;
 - Put parameters to system functions in structs for ease of declaration;
 - Maybe add macros to shorten the names of functions in system definitions, for
   convenience;

@@ -1,9 +1,10 @@
 use std::fmt::Display;
 
-use crate::generate::generics::common::{method_name, whatever_name};
+use crate::generate::generics::common::{
+  GenericElement, StructName, method_name, struct_name,
+};
 use crate::generate::generics::dyn_queue::DynQueue;
 
-use super::common::{GenericElement, StructName, Whatever, struct_name};
 use super::dyn_arrays::DynArray;
 
 pub struct SparseDynArray<T: GenericElement> {
@@ -25,10 +26,6 @@ impl<T: GenericElement> SparseDynArray<T> {
 
   pub fn get_type<'a>(&'a self) -> StructName<'a> {
     struct_name!("sparse_dyn_array"; self.element_t)
-  }
-
-  pub fn get_whatever<'a>(&'a self) -> Whatever {
-    whatever_name!("sparse_dyn_array", self.element_t)
   }
 }
 
@@ -56,7 +53,7 @@ impl<'a, T: GenericElement> Display for SparseDynArrayHeader<'a, T> {
       f,
       concat!(
         "// Sparse dynamic array of `{element_t}`.\n",
-        "typedef struct {whatever} {{\n",
+        "typedef struct {{\n",
         "  {element_dyn_arr_t} items;\n",
         "\n",
         "  // The kth bit being set means there is a hole at index k. There will be\n",
@@ -85,7 +82,6 @@ impl<'a, T: GenericElement> Display for SparseDynArrayHeader<'a, T> {
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
-      whatever = self.0.get_whatever(),
       element_t = element_t,
       element_dyn_arr_t = element_dyn_arr_t,
       gen_dyn_arr_t = gen_dyn_arr_t,

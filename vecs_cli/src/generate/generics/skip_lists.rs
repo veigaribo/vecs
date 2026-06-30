@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
-use crate::generate::generics::common::{function_name, method_name, whatever_name};
-
-use super::common::{GenericElement, StructName, Whatever, struct_name};
+use crate::generate::generics::common::{
+  GenericElement, StructName, Whatever, function_name, method_name, struct_name,
+  whatever_name,
+};
 
 // Entry of the skip list, containing the values of the next entry (the one to the
 // right) and pointers to entries to the right and below.

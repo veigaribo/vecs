@@ -1,10 +1,8 @@
 use std::fmt::Display;
 
 use crate::generate::generics::common::{
-  Whatever, method_name, struct_name, whatever_name,
+  GenericElement, StructName, method_name, struct_name,
 };
-
-use super::common::{GenericElement, StructName};
 
 pub struct DynArray<T: GenericElement> {
   pub element_t: T,
@@ -26,10 +24,6 @@ impl<T: GenericElement> DynArray<T> {
   pub fn get_type<'a>(&'a self) -> StructName<'a> {
     struct_name!("dyn_array"; self.element_t)
   }
-
-  pub fn get_whatever<'a>(&'a self) -> Whatever {
-    whatever_name!("dyn_array", self.element_t)
-  }
 }
 
 pub struct DynArrayHeader<'a, T: GenericElement>(&'a DynArray<T>);
@@ -44,7 +38,7 @@ impl<'a, T: GenericElement> Display for DynArrayHeader<'a, T> {
       f,
       concat!(
         "// Dynamic array of `{element_t}`.\n",
-        "typedef struct {whatever} {{\n",
+        "typedef struct {{\n",
         "  {element_t} *items;\n",
         "  uint32_t len;\n",
         "  uint32_t cap;\n",
@@ -59,7 +53,6 @@ impl<'a, T: GenericElement> Display for DynArrayHeader<'a, T> {
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
-      whatever = self.0.get_whatever(),
       element_t = element_t,
       self_t = self_t,
       method_init = method_name!(&self_t, "init"),

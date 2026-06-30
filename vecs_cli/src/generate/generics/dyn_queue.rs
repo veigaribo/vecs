@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use crate::generate::generics::common::{method_name, struct_name, whatever_name};
-
-use super::common::{GenericElement, StructName, Whatever};
+use crate::generate::generics::common::{
+  GenericElement, StructName, method_name, struct_name,
+};
 
 pub struct DynQueue<T: GenericElement> {
   pub element_t: T,
@@ -24,10 +24,6 @@ impl<T: GenericElement> DynQueue<T> {
   pub fn get_type<'a>(&'a self) -> StructName<'a> {
     struct_name!("dyn_queue"; self.element_t)
   }
-
-  pub fn get_whatever<'a>(&'a self) -> Whatever {
-    whatever_name!("dyn_queue", self.element_t)
-  }
 }
 
 pub struct DynQueueHeader<'a, T: GenericElement>(&'a DynQueue<T>);
@@ -42,7 +38,7 @@ impl<'a, T: GenericElement> Display for DynQueueHeader<'a, T> {
       f,
       concat!(
         "// Dynamic queue of `{element_t}`.\n",
-        "typedef struct {whatever} {{\n",
+        "typedef struct {{\n",
         "  {element_t} *items;\n",
         "  uint32_t len;\n",
         "  uint32_t cap;\n",
@@ -57,7 +53,6 @@ impl<'a, T: GenericElement> Display for DynQueueHeader<'a, T> {
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
-      whatever = self.0.get_whatever(),
       element_t = element_t,
       self_t = self_t,
       method_init = method_name!(&self_t, "init"),

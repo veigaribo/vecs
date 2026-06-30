@@ -17,9 +17,7 @@ use super::{
     ComponentMask, ComponentMaskName, NodeMask, NodeMaskName, StateIdName,
   },
   generics::{
-    common::{method_name, whatever_name},
-    dyn_arrays::DynArray,
-    dyn_queue::DynQueue,
+    common::method_name, dyn_arrays::DynArray, dyn_queue::DynQueue,
     sparse_dyn_arrays::SparseDynArray,
   },
 };
@@ -316,11 +314,7 @@ impl<'a> Display for Header<'a> {
 
       // TODO: Add entity ID
       write!(f, "// Node `{}`.\n\n", node.name)?;
-      write!(
-        f,
-        "typedef struct {} {{\n",
-        whatever_name!("node", node.name),
-      )?;
+      write!(f, "typedef struct {{\n",)?;
 
       for component_name in node.components.iter() {
         let component = self
