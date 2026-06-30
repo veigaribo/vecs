@@ -53,12 +53,13 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
-        "#ifndef VECS_VECS_H\n",
-        "#define VECS_VECS_H\n",
+        "#ifndef VECS_ECS_H\n",
+        "#define VECS_ECS_H\n",
         "\n",
         "#include <stdbool.h>\n",
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
+        "#include <vecs.h>\n",
         "\n",
       )
     )?;
@@ -71,19 +72,6 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
-        "// Index and gen in one struct. Used for permanent storage of entities and\n",
-        "// component references.\n",
-        "typedef struct vecs_id {{\n",
-        "  uint32_t index;\n",
-        "  uint32_t gen;\n",
-        "}} vecs_id_t;\n",
-        "\n",
-        "// Used to temporarily refer to entities and components that have not yet\n",
-        "// been persisted, and so do not yet posses a permanent `vecs_id_t`.\n",
-        "typedef struct vecs_tmp_id {{\n",
-        "  uint32_t index;\n",
-        "}} vecs_tmp_id_t;\n",
-        "\n",
         "// TODO: Remove this.\n",
         "typedef struct vecs_frame {{\n",
         "  float delta;\n",
@@ -670,7 +658,7 @@ impl<'a> Display for Header<'a> {
       )?;
     }
 
-    write!(f, "\n#endif\n")?;
+    write!(f, "\n#endif // !VECS_ECS_H\n")?;
 
     Ok(())
   }
