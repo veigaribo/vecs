@@ -19,10 +19,10 @@ typedef struct vecs_tmp_id {
   uint32_t index;
 } vecs_tmp_id_t;
 
-static const vecs_id_t vecs_id_invalid = {.index = UINT32_MAX, .gen = INT32_MAX};
+static const vecs_id_t vecs_id_invalid = {.index = UINT32_MAX, .gen = UINT32_MAX};
 
 inline static bool vecs_id_is_invalid(vecs_id_t id) {
-  return id.index == UINT32_MAX && id.gen == INT32_MAX;
+  return id.index == UINT32_MAX && id.gen == UINT32_MAX;
 }
 
 #endif // !VECS_VECS_H
