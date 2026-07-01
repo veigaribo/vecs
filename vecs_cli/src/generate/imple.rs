@@ -48,10 +48,8 @@ impl<'a> Display for Impl<'a> {
     write!(
       f,
       concat!(
-        "// http://www.cse.yorku.ca/~oz/hash.html\n",
         "static inline vecs_id_t {max_key_fn_name}() {{\n",
-        "  vecs_id_t id = {{.index = UINT32_MAX, .gen = UINT32_MAX}};\n",
-        "  return id;\n",
+        "  return vecs_id_max();\n",
         "}}\n",
       ),
       max_key_fn_name = max_key_fn_name,
@@ -62,9 +60,8 @@ impl<'a> Display for Impl<'a> {
     write!(
       f,
       concat!(
-        "// http://www.cse.yorku.ca/~oz/hash.html\n",
         "static inline bool {eq_fn_name}(vecs_id_t a, vecs_id_t b) {{\n",
-        "  return a.index == b.index && a.gen == b.gen;\n",
+        "  return vecs_id_eq(a, b);\n",
         "}}\n",
       ),
       eq_fn_name = id_eq_fn_name,
@@ -75,11 +72,8 @@ impl<'a> Display for Impl<'a> {
     write!(
       f,
       concat!(
-        "// http://www.cse.yorku.ca/~oz/hash.html\n",
         "static inline int8_t {cmp_fn_name}(vecs_id_t a, vecs_id_t b) {{\n",
-        "  uint64_t a64 = ((uint64_t) a.index << 32) | a.gen;\n",
-        "  uint64_t b64 = ((uint64_t) b.index << 32) | b.gen;\n",
-        "  return a64 < b64 ? -1 : 1;\n",
+        "  return vecs_id_cmp(a, b);\n",
         "}}\n",
       ),
       cmp_fn_name = id_cmp_fn_name,
