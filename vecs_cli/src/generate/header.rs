@@ -514,6 +514,7 @@ impl<'a> Display for Header<'a> {
         "void vecs_destroy(vecs_engine_t *e);\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n",
         "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e);\n",
+        "void vecs_sync(vecs_engine_t *e);\n",
       ),
     )?;
 

@@ -275,8 +275,46 @@ impl<'a> Display for Impl<'a> {
         "  ++e->entities_to_add;\n",
         "  return id;\n",
         "}}\n",
+        "void vecs_sync(vecs_engine_t *e) {{\n",
+        "  size_t new_component_count = e->ops_add_component.len;\n",
+        "  size_t new_thing_count = e->entities_to_add + new_component_count;\n",
+        "\n",
+        "  if (new_thing_count > e->things_to_add_count) {{\n",
+        "    e->things_to_add = malloc(new_thing_count * sizeof(vecs_id_t));\n",
+        "    e->things_to_add_count = new_thing_count;\n",
+        "  }}\n",
+        "\n",
+        "  vecs_id_t *new_entities = e->things_to_add + 0;\n",
+        "  vecs_id_t *new_components = e->things_to_add + e->entities_to_add;\n",
+        "\n",
+        "  for (size_t i = 0; i < e->entities_to_add; ++i) {{\n",
+        "    new_entities[i] = vecs_add_entity(e);\n",
+        "  }}\n",
+        "\n",
+        "  for (size_t i = 0; i < new_component_count; ++i) {{\n",
+        "    vecs_op_union_add_component_t op = {op_add_component_queue_method_dequeue}(&e->ops_add_component);\n",
+        "    new_components[i] = op.apply(e, new_entities, op);\n",
+        "  }}\n",
+        "\n",
+        "  size_t ops_other_count = e->ops_other.len;\n",
+        "  for (size_t i = 0; i < ops_other_count; ++i) {{\n",
+        "    vecs_op_union_other_t op = {op_other_queue_method_dequeue}(&e->ops_other);\n",
+        "    op.apply(e, new_entities, new_components, op);\n",
+        "  }}\n",
+        "\n",
+        "  size_t remove_component_count = e->ops_remove_component.len;\n",
+        "  for (size_t i = 0; i < remove_component_count; ++i) {{\n",
+        "    vecs_op_union_remove_component_t op = {op_remove_component_queue_method_dequeue}(&e->ops_remove_component);\n",
+        "    op.apply(e, op);\n",
+        "  }}\n",
+        "}}\n",
       ),
       entity_array_method_push = method_name!(&entity_array_t, "push"),
+      op_add_component_queue_method_dequeue =
+        method_name!(&op_add_component_queue_t, "dequeue"),
+      op_other_queue_method_dequeue = method_name!(&op_other_queue_t, "dequeue"),
+      op_remove_component_queue_method_dequeue =
+        method_name!(&op_remove_component_queue_t, "dequeue"),
     )?;
 
     // Mask utilities:
@@ -1118,48 +1156,7 @@ impl<'a> Display for Impl<'a> {
         write!(f, "  }}\n")?;
       }
 
-      write!(
-        f,
-        concat!(
-          "  size_t new_component_count = e->ops_add_component.len;\n",
-          "  size_t new_thing_count = e->entities_to_add + new_component_count;\n",
-          "\n",
-          "  if (new_thing_count > e->things_to_add_count) {{\n",
-          "    e->things_to_add = malloc(new_thing_count * sizeof(vecs_id_t));\n",
-          "    e->things_to_add_count = new_thing_count;\n",
-          "  }}\n",
-          "\n",
-          "  vecs_id_t *new_entities = e->things_to_add + 0;\n",
-          "  vecs_id_t *new_components = e->things_to_add + e->entities_to_add;\n",
-          "\n",
-          "  for (size_t i = 0; i < e->entities_to_add; ++i) {{\n",
-          "    new_entities[i] = vecs_add_entity(e);\n",
-          "  }}\n",
-          "\n",
-          "  for (size_t i = 0; i < new_component_count; ++i) {{\n",
-          "    vecs_op_union_add_component_t op = {op_add_component_queue_method_dequeue}(&e->ops_add_component);\n",
-          "    new_components[i] = op.apply(e, new_entities, op);\n",
-          "  }}\n",
-          "\n",
-          "  size_t ops_other_count = e->ops_other.len;\n",
-          "  for (size_t i = 0; i < ops_other_count; ++i) {{\n",
-          "    vecs_op_union_other_t op = {op_other_queue_method_dequeue}(&e->ops_other);\n",
-          "    op.apply(e, new_entities, new_components, op);\n",
-          "  }}\n",
-          "\n",
-          "  size_t remove_component_count = e->ops_remove_component.len;\n",
-          "  for (size_t i = 0; i < remove_component_count; ++i) {{\n",
-          "    vecs_op_union_remove_component_t op = {op_remove_component_queue_method_dequeue}(&e->ops_remove_component);\n",
-          "    op.apply(e, op);\n",
-          "  }}\n",
-          "}}\n",
-        ),
-        op_add_component_queue_method_dequeue =
-          method_name!(&op_add_component_queue_t, "dequeue"),
-        op_other_queue_method_dequeue = method_name!(&op_other_queue_t, "dequeue"),
-        op_remove_component_queue_method_dequeue =
-          method_name!(&op_remove_component_queue_t, "dequeue"),
-      )?;
+      write!(f, concat!("  vecs_sync(e);\n", "}}\n",),)?;
     }
 
     // Event emition:
