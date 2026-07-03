@@ -9,10 +9,10 @@ General:
   well as on permanently stored ones, if that's found to be useful;
 - Get rid of default `frame` event;
 - Improve presentation of error messages (spans mainly);
-- Add methods that operate based on `engine->state` automatically for convenience;
 - Put parameters to system functions in structs for ease of declaration;
 - Maybe add macros to shorten the names of functions in system definitions, for
   convenience;
+- Recheck for memory leaks;
 
 OS-specific:
 

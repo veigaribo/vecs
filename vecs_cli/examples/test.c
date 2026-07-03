@@ -47,7 +47,7 @@ void click(vecs_engine_t *engine, vecs_node_click_t node,
 
 int main() {
   vecs_engine_t e;
-  vecs_init(&e);
+  vecs_init(&e, VECS_STATE_MAIN);
 
   vecs_id_t ent1 = vecs_add_entity(&e);
 
@@ -80,34 +80,34 @@ int main() {
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
   vecs_main_remove_component_render(&e, ent1);
-  vecs_run_state_main(&e);
+  vecs_run(&e);
 
   printf("  add render\n");
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
   vecs_main_add_component_render(&e, ent1);
-  vecs_run_state_main(&e);
+  vecs_run(&e);
 
   printf("  update render\n");
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
   t1.x = 2.5;
   vecs_main_update_component_transform(&e, ent1, t1);
-  vecs_run_state_main(&e);
+  vecs_run(&e);
 
   printf("  main -> menu\n");
   vecs_state_main_to_menu(&e);
 
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
-  vecs_run_state_menu(&e);
+  vecs_run(&e);
 
   printf("  menu -> main\n");
   vecs_state_menu_to_main(&e);
 
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
-  vecs_run_state_main(&e);
+  vecs_run(&e);
 
   vecs_destroy(&e);
 }

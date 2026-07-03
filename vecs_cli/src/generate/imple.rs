@@ -20,6 +20,45 @@ use super::{
   },
 };
 
+fn write_state_switch<
+  'a,
+  W: std::fmt::Write,
+  F: Fn(&mut W, &str) -> std::fmt::Result,
+>(
+  w: &mut W,
+  data: &Cst<'a>,
+  write_arm: F,
+) -> std::fmt::Result {
+  write!(w, "  switch (e->state) {{\n")?;
+  for state in data.states.values() {
+    let state_id = StateIdName::new(state.name);
+    write!(w, "  case {state_id}:\n    ", state_id = state_id)?;
+    write_arm(w, state.name)?;
+
+    write!(w, ";\n    break;\n",)?;
+  }
+  write!(w, "  }}\n")?;
+  Ok(())
+}
+
+fn write_state_dispatched_method<
+  'a,
+  W: std::fmt::Write,
+  NameFn: Fn(&mut W) -> std::fmt::Result,
+  ArmFn: Fn(&mut W, &str) -> std::fmt::Result,
+>(
+  w: &mut W,
+  data: &Cst<'a>,
+  write_signature: NameFn,
+  write_arm: ArmFn,
+) -> std::fmt::Result {
+  write_signature(w)?;
+  write!(w, " {{\n")?;
+  write_state_switch(w, data, write_arm)?;
+  write!(w, "}}\n")?;
+  Ok(())
+}
+
 pub struct Impl<'a> {
   pub header_name: &'a str,
   pub data: &'a Cst<'a>,
@@ -125,8 +164,8 @@ impl<'a> Display for Impl<'a> {
     write!(
       f,
       concat!(
-        "void vecs_init(vecs_engine_t *e) {{\n",
-        "  e->state = VECS_STATE_NONE;\n",
+        "void vecs_init(vecs_engine_t *e, vecs_state_t state) {{\n",
+        "  e->state = state;\n",
         "  e->entities_to_add = 0;\n",
         "  e->things_to_add = NULL;\n",
         "  e->things_to_add_count = 0;\n",
@@ -616,6 +655,163 @@ impl<'a> Display for Impl<'a> {
         write!(f, concat!("}}\n",),)?;
       }
 
+      write_state_dispatched_method(
+        f,
+        &self.data,
+        |f| {
+          write!(
+            f,
+            "void vecs_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity)",
+            component_name = component_name,
+          )
+        },
+        |f, state_name| {
+          write!(
+            f,
+            "vecs_{state_name}_enable_component_{component_name}(e, entity)",
+            component_name = component_name,
+          )
+        },
+      )?;
+
+      write_state_dispatched_method(
+        f,
+        &self.data,
+        |f| {
+          write!(
+            f,
+            "void vecs_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity)",
+            component_name = component_name,
+          )
+        },
+        |f, state_name| {
+          write!(
+            f,
+            "vecs_{state_name}_disable_component_{component_name}(e, entity)",
+            component_name = component_name,
+          )
+        },
+      )?;
+
+      if !component.is_empty() {
+        write_state_dispatched_method(
+          f,
+          &self.data,
+          |f| {
+            write!(
+              f,
+              "vecs_id_t vecs_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component)",
+              component_name = component_name,
+              component_t = component_t,
+            )
+          },
+          |f, state_name| {
+            write!(
+              f,
+              "return vecs_{state_name}_add_component_{component_name}(e, entity, component)",
+              component_name = component_name,
+            )
+          },
+        )?;
+
+        write_state_dispatched_method(
+          f,
+          &self.data,
+          |f| {
+            write!(
+              f,
+              "vecs_id_t vecs_upsert_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component)",
+              component_name = component_name,
+              component_t = component_t,
+            )
+          },
+          |f, state_name| {
+            write!(
+              f,
+              "return vecs_{state_name}_upsert_component_{component_name}(e, entity, component)",
+              component_name = component_name,
+            )
+          },
+        )?;
+
+        write_state_dispatched_method(
+          f,
+          &self.data,
+          |f| {
+            write!(
+              f,
+              "vecs_id_t vecs_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component)",
+              component_name = component_name,
+              component_t = component_t,
+            )
+          },
+          |f, state_name| {
+            write!(
+              f,
+              "return vecs_{state_name}_update_component_{component_name}(e, entity, component)",
+              component_name = component_name,
+            )
+          },
+        )?;
+
+        write_state_dispatched_method(
+          f,
+          &self.data,
+          |f| {
+            write!(
+              f,
+              "bool vecs_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity)",
+              component_name = component_name,
+            )
+          },
+          |f, state_name| {
+            write!(
+              f,
+              "return vecs_{state_name}_remove_component_{component_name}(e, entity)",
+              component_name = component_name,
+            )
+          },
+        )?;
+      } else {
+        write_state_dispatched_method(
+          f,
+          &self.data,
+          |f| {
+            write!(
+              f,
+              "void vecs_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity)",
+              component_name = component_name,
+            )
+          },
+          |f, state_name| {
+            write!(
+              f,
+              "vecs_{state_name}_add_component_{component_name}(e, entity)",
+              component_name = component_name,
+            )
+          },
+        )?;
+
+        write_state_dispatched_method(
+          f,
+          &self.data,
+          |f| {
+            write!(
+              f,
+              "void vecs_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity)",
+              component_name = component_name,
+            )
+          },
+          |f, state_name| {
+            write!(
+              f,
+              "vecs_{state_name}_remove_component_{component_name}(e, entity)",
+              component_name = component_name,
+            )
+          },
+        )?;
+      }
+
       // Callbacks that are stored in the deferred operations and apply them
       for state in self.data.states.values() {
         if !component.is_empty() {
@@ -1097,12 +1293,8 @@ impl<'a> Display for Impl<'a> {
       // State loops:
       write!(
         f,
-        concat!(
-          "void vecs_run_state_{state_name}(vecs_engine_t *e) {{\n",
-          "  e->state = {state_id};\n",
-        ),
+        "void vecs_run_state_{state_name}(vecs_engine_t *e) {{\n",
         state_name = state.name,
-        state_id = state_id,
       )?;
 
       for event in self.data.events.values() {
@@ -1158,6 +1350,15 @@ impl<'a> Display for Impl<'a> {
 
       write!(f, concat!("  vecs_sync(e);\n", "}}\n",),)?;
     }
+
+    write_state_dispatched_method(
+      f,
+      &self.data,
+      |f| write!(f, "void vecs_run(vecs_engine_t *e)"),
+      |f, state_name| {
+        write!(f, "vecs_run_state_{state_name}(e)", state_name = state_name)
+      },
+    )?;
 
     // Event emition:
     for event in self.data.events.values() {

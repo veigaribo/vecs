@@ -39,7 +39,7 @@ fn write_iterator<W: std::fmt::Write, I: Iterator<Item = T>, T: Display>(
     write!(w, " {}", i)?;
   }
 
-  return Ok(());
+  Ok(())
 }
 
 pub struct Header<'a> {
@@ -510,11 +510,12 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
-        "void vecs_init(vecs_engine_t *e);\n",
+        "void vecs_init(vecs_engine_t *e, vecs_state_t state);\n",
         "void vecs_destroy(vecs_engine_t *e);\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n",
         "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e);\n",
         "void vecs_sync(vecs_engine_t *e);\n",
+        "void vecs_run(vecs_engine_t *e);\n",
       ),
     )?;
 
@@ -523,12 +524,23 @@ impl<'a> Display for Header<'a> {
       let component_name = component.name();
       let component_t = ComponentStructName::new(component_name);
 
+      // State-independent methods
+      write!(
+        f,
+        concat!(
+          "bool vecs_has_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+          "{component_t} *vecs_get_component_{component_name}(vecs_engine_t *e, vecs_id_t component_id);\n",
+        ),
+        component_name = component_name,
+        component_t = component_t,
+      )?;
+
+      // State-specific methods
       for state in self.data.states.values() {
         // Immediate methods
         write!(
           f,
           concat!(
-            "bool vecs_has_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "void vecs_{state_name}_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
             "void vecs_{state_name}_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
           ),
@@ -540,7 +552,6 @@ impl<'a> Display for Header<'a> {
           write!(
             f,
             concat!(
-              "{component_t} *vecs_get_component_{component_name}(vecs_engine_t *e, vecs_id_t component_id);\n",
               "vecs_id_t vecs_{state_name}_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
               "vecs_id_t vecs_{state_name}_upsert_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
               "vecs_id_t vecs_{state_name}_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
@@ -562,6 +573,39 @@ impl<'a> Display for Header<'a> {
             component_name = component_name,
           )?;
         }
+      }
+
+      // State-agnostic methods
+      write!(
+        f,
+        concat!(
+          "void vecs_disable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+          "void vecs_enable_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+        ),
+        component_name = component_name,
+      )?;
+
+      if !component.is_empty() {
+        write!(
+          f,
+          concat!(
+            "vecs_id_t vecs_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+            "vecs_id_t vecs_upsert_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+            "vecs_id_t vecs_update_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component);\n",
+            "bool vecs_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+          ),
+          component_name = component_name,
+          component_t = component_t,
+        )?;
+      } else {
+        write!(
+          f,
+          concat!(
+            "void vecs_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+            "void vecs_remove_component_{component_name}(vecs_engine_t *e, vecs_id_t entity);\n",
+          ),
+          component_name = component_name,
+        )?;
       }
 
       // Deferred methods
