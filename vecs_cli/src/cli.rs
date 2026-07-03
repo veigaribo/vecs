@@ -12,10 +12,10 @@ pub struct Cli {
   pub dest: String,
 
   /// Path of generated C file
-  #[arg(short = 'C', long = "c-out", default_value = "vecs.c")]
+  #[arg(short = 'C', long = "c-out", default_value = "ecs.c")]
   pub c_output: String,
 
   /// Path of generated C header file
-  #[arg(short = 'H', long = "h-out", default_value = "vecs.h")]
+  #[arg(short = 'H', long = "h-out", default_value = "ecs.h")]
   pub h_output: String,
 }

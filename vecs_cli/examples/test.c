@@ -1,4 +1,4 @@
-#include "vecs.h"
+#include "ecs.h"
 #include <stdio.h>
 
 void move_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
