@@ -169,7 +169,7 @@ impl<'a> Display for Impl<'a> {
         "  e->entities_to_add = 0;\n",
         "  e->things_to_add = NULL;\n",
         "  e->things_to_add_count = 0;\n",
-        "  e->next_state = VECS_STATE_NONE;\n",
+        "  e->next_state = 0;\n",
         "  {entity_array_method_init}(&e->entities, 0);\n",
         "  {op_add_component_queue_method_init}(&e->ops_add_component, 0);\n",
         "  {op_other_queue_method_init}(&e->ops_other, 0);\n",
@@ -239,7 +239,7 @@ impl<'a> Display for Impl<'a> {
       concat!(
         "}}\n",
         "void vecs_destroy(vecs_engine_t *e) {{\n",
-        "  e->state = VECS_STATE_NONE;\n",
+        "  e->state = 0;\n",
         "  {entity_array_method_destroy}(&e->entities);\n",
       ),
       entity_array_method_destroy = method_name!(&entity_array_t, "destroy"),

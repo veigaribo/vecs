@@ -209,8 +209,12 @@ impl<'a> Display for Header<'a> {
 
     // State enum:
     write!(f, "typedef enum vecs_state {{\n",)?;
-    write!(f, "  VECS_STATE_NONE,\n",)?;
-    for state in self.data.states.values() {
+    let mut states = self.data.states.values();
+    if let Some(state) = states.next() {
+      let state_id = StateIdName::new(state.name);
+      write!(f, "  {} = 1,\n", state_id)?;
+    }
+    for state in states {
       let state_id = StateIdName::new(state.name);
       write!(f, "  {},\n", state_id)?;
     }

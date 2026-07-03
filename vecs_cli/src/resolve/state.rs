@@ -17,15 +17,6 @@ pub fn resolve_state<'src>(
 
   if let Some(value) = maybe_value {
     if let ValueKind::Symbol(name) = value.kind {
-      if name.eq_ignore_ascii_case("NONE") {
-        return Err(ResolveError::new(
-          value.span,
-          format!(
-            "a state named 'none' is always generated, and thus the name is reserved. if still want that state, please name it something else"
-          ),
-        ));
-      }
-
       if meta.cst.states.contains_key(name) {
         let previous = meta.cst.states.get(name).unwrap();
 
