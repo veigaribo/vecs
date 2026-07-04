@@ -241,8 +241,16 @@ impl<'a> Display for Impl<'a> {
         "void vecs_destroy(vecs_engine_t *e) {{\n",
         "  e->state = 0;\n",
         "  {entity_array_method_destroy}(&e->entities);\n",
+        "  {op_add_component_queue_method_destroy}(&e->ops_add_component);\n",
+        "  {op_other_queue_method_destroy}(&e->ops_other);\n",
+        "  {op_remove_component_queue_method_destroy}(&e->ops_remove_component);\n",
       ),
       entity_array_method_destroy = method_name!(&entity_array_t, "destroy"),
+      op_add_component_queue_method_destroy =
+        method_name!(&op_add_component_queue_t, "destroy"),
+      op_other_queue_method_destroy = method_name!(&op_other_queue_t, "destroy"),
+      op_remove_component_queue_method_destroy =
+        method_name!(&op_remove_component_queue_t, "destroy"),
     )?;
 
     for component in self.data.components.values() {
@@ -290,7 +298,7 @@ impl<'a> Display for Impl<'a> {
 
       write!(
         f,
-        concat!("{event_queue_method_destroy}(&e->events_{event_name});\n"),
+        concat!("  {event_queue_method_destroy}(&e->events_{event_name});\n"),
         event_name = event.name,
         event_queue_method_destroy = method_name!(&dyn_queue_t, "destroy"),
       )?;
@@ -819,15 +827,31 @@ impl<'a> Display for Impl<'a> {
             f,
             concat!(
               "static void vecs_{state_name}_apply_store_entity_in_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
-              "  vecs_op_store_entity_t store = op.store_entity;\n",
-              "  vecs_id_t entity = new_entities[store.tmp_entity.index];\n",
+              "  vecs_op_store_t store = op.store;\n",
+              "  vecs_id_t entity = new_entities[store.tmp_thing.index];\n",
               "  vecs_id_t *location = (vecs_id_t*)((uint8_t*)e->components_{component_name}.items.items + store.location_offset);\n",
               "  *location = entity;\n",
               "}}\n",
-              "static void vecs_{state_name}_apply_store_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
-              "  vecs_op_store_component_t store = op.store_component;\n",
-              "  vecs_id_t component = new_components[store.tmp_component.index];\n",
+              "static void vecs_{state_name}_apply_store_in_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+              "  vecs_op_store_t store = op.store;\n",
+              "  vecs_id_t component = new_components[store.tmp_thing.index];\n",
               "  vecs_id_t *location = (vecs_id_t*)((uint8_t*)e->components_{component_name}.items.items + store.location_offset);\n",
+              "  *location = component;\n",
+              "}}\n",
+              "static void vecs_{state_name}_apply_store_entity_in_tmp_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+              "  vecs_op_store_tmp_t store_tmp = op.store_tmp;\n",
+              "  vecs_id_t entity = new_entities[store_tmp.tmp_thing.index];\n",
+              "  vecs_id_t in_component = new_components[store_tmp.in_tmp_component.index];\n",
+              "  {component_t} *location_component = {component_array_method_get_unchecked}(&e->components_{component_name}, in_component.index);\n",
+              "  vecs_id_t *location = (vecs_id_t *)((uint8_t *)location_component + store_tmp.offset);\n",
+              "  *location = entity;\n",
+              "}}\n",
+              "static void vecs_{state_name}_apply_store_in_tmp_component_{component_name}(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+              "  vecs_op_store_tmp_t store_tmp = op.store_tmp;\n",
+              "  vecs_id_t component = new_components[store_tmp.tmp_thing.index];\n",
+              "  vecs_id_t in_component = new_components[store_tmp.in_tmp_component.index];\n",
+              "  {component_t} *location_component = {component_array_method_get_unchecked}(&e->components_{component_name}, in_component.index);\n",
+              "  vecs_id_t *location = (vecs_id_t *)((uint8_t *)location_component + store_tmp.offset);\n",
               "  *location = component;\n",
               "}}\n",
               "static vecs_id_t vecs_{state_name}_apply_add_component_{component_name}(vecs_engine_t *e, vecs_id_t *new_entities, vecs_op_union_add_component_t op) {{\n",
@@ -862,6 +886,9 @@ impl<'a> Display for Impl<'a> {
             ),
             state_name = state.name,
             component_name = component_name,
+            component_t = component_t,
+            component_array_method_get_unchecked =
+              method_name!(&component_array_t, "get_unchecked"),
           )?;
         } else {
           write!(
@@ -902,7 +929,9 @@ impl<'a> Display for Impl<'a> {
 
     let op_nonempty_other_names = [
       "store_entity_in",
-      "store_component",
+      "store_in_component",
+      "store_entity_in_tmp",
+      "store_in_tmp_component",
       "upsert_component",
       "update_component",
       "enable_component",
@@ -1027,11 +1056,11 @@ impl<'a> Display for Impl<'a> {
             "  assert((uint8_t*)location < (uint8_t*)e->components_{component_name}.items.items + e->components_{component_name}.items.len * sizeof({component_t}));\n",
             "\n",
             "  ptrdiff_t offset = (uint8_t*)e->components_{component_name}.items.items - (uint8_t*)location;\n",
-            "  vecs_op_store_entity_t store = {{.tmp_entity = tmp_entity, .location_offset = offset}};\n",
-            "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_entity_in_{component_name}[e->state], .store_entity = store}};\n",
+            "  vecs_op_store_t store = {{.tmp_thing = tmp_entity, .location_offset = offset}};\n",
+            "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_entity_in_{component_name}[e->state], .store = store}};\n",
             "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
             "}}\n",
-            "void vecs_schedule_store_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_component, vecs_id_t *location) {{\n",
+            "void vecs_schedule_store_in_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_component, vecs_id_t *location) {{\n",
             "  assert(sizeof(uint8_t*) == sizeof(vecs_id_t*) && sizeof(uint8_t*) == sizeof({component_t}*));\n",
             "\n",
             "  // Make sure the location is inside the component array\n",
@@ -1039,8 +1068,18 @@ impl<'a> Display for Impl<'a> {
             "  assert((uint8_t*)location < (uint8_t*)e->components_{component_name}.items.items + e->components_{component_name}.items.len * sizeof({component_t}));\n",
             "\n",
             "  ptrdiff_t offset = (uint8_t*)e->components_{component_name}.items.items - (uint8_t*)location;\n",
-            "  vecs_op_store_component_t store = {{.tmp_component = tmp_component, .location_offset = offset}};\n",
-            "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_component_{component_name}[e->state], .store_component = store}};\n",
+            "  vecs_op_store_t store = {{.tmp_thing = tmp_component, .location_offset = offset}};\n",
+            "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_in_component_{component_name}[e->state], .store = store}};\n",
+            "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+            "}}\n",
+            "void vecs_schedule_store_entity_in_tmp_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_entity, vecs_tmp_id_t in_tmp_component, size_t offset) {{\n",
+            "  vecs_op_store_tmp_t store_tmp = {{.tmp_thing = tmp_entity, .in_tmp_component = in_tmp_component, .offset = offset}};\n",
+            "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_entity_in_tmp_{component_name}[e->state], .store_tmp = store_tmp}};\n",
+            "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+            "}}\n",
+            "void vecs_schedule_store_in_tmp_component_{component_name}(vecs_engine_t *e, vecs_tmp_id_t tmp_component, vecs_tmp_id_t in_tmp_component, size_t offset) {{\n",
+            "  vecs_op_store_tmp_t store_tmp = {{.tmp_thing = tmp_component, .in_tmp_component = in_tmp_component, .offset = offset}};\n",
+            "  vecs_op_union_other_t op = {{.apply = vecs_op_map_store_in_tmp_component_{component_name}[e->state], .store_tmp = store_tmp}};\n",
             "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
             "}}\n",
             "vecs_tmp_id_t vecs_schedule_add_component_{component_name}(vecs_engine_t *e, vecs_id_t entity, {component_t} component) {{\n",
@@ -1240,7 +1279,7 @@ impl<'a> Display for Impl<'a> {
             )?;
 
             if !new_relevant_node.is_empty() {
-              write!(f, "    uint32_t component_index;\n")?;
+              write!(f, "      uint32_t component_index;\n")?;
             }
 
             for component_name in new_relevant_node.components.iter() {

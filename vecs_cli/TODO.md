@@ -13,6 +13,7 @@ General:
 - Maybe add macros to shorten the names of functions in system definitions, for
   convenience;
 - Recheck for memory leaks;
+- Extract parser and resolver as a library for use in other crates;
 
 OS-specific:
 
