@@ -112,6 +112,17 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
+        "typedef void (vecs_schedule_callback_t)(\n",
+        "  vecs_engine_t *e,\n",
+        "  vecs_id_t *restrict new_entities,\n",
+        "  vecs_id_t *restrict new_components,\n",
+        "  void *param\n",
+        ");\n",
+        "\n",
+        "typedef struct vecs_op_custom {{\n",
+        "  vecs_schedule_callback_t *callback;\n",
+        "  void *param;\n",
+        "}} vecs_op_custom_t;\n",
         "typedef struct vecs_op_store {{\n",
         "  vecs_tmp_id_t tmp_thing;\n",
         "  ptrdiff_t location_offset;\n",
@@ -265,6 +276,7 @@ impl<'a> Display for Header<'a> {
         "typedef struct vecs_op_union_other {{\n",
         "  void (*apply)(struct vecs_engine *, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, struct vecs_op_union_other);\n",
         "  union {{\n",
+        "    vecs_op_custom_t custom;\n",
         "    vecs_op_store_t store;\n",
         "    vecs_op_store_tmp_t store_tmp;\n",
         "    vecs_op_enable_component_t enable;\n",
@@ -515,10 +527,12 @@ impl<'a> Display for Header<'a> {
     write!(
       f,
       concat!(
+        "\n",
         "void vecs_init(vecs_engine_t *e, vecs_state_t state);\n",
         "void vecs_destroy(vecs_engine_t *e);\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n",
         "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e);\n",
+        "void vecs_schedule(vecs_engine_t *e, vecs_schedule_callback_t *callback, void *param);\n",
         "void vecs_sync(vecs_engine_t *e);\n",
         "void vecs_run(vecs_engine_t *e);\n",
       ),

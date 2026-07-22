@@ -164,6 +164,16 @@ impl<'a> Display for Impl<'a> {
     write!(
       f,
       concat!(
+        "static void vecs_apply_custom(vecs_engine_t *e, vecs_id_t *restrict new_entities, vecs_id_t *restrict new_components, vecs_op_union_other_t op) {{\n",
+        "  vecs_op_custom_t custom = op.custom;\n",
+        "  custom.callback(e, new_entities, new_components, custom.param);\n",
+        "}}\n",
+      )
+    )?;
+
+    write!(
+      f,
+      concat!(
         "void vecs_init(vecs_engine_t *e, vecs_state_t state) {{\n",
         "  e->state = state;\n",
         "  e->entities_to_add = 0;\n",
@@ -317,6 +327,11 @@ impl<'a> Display for Impl<'a> {
         "  {entity_array_method_push}(&e->entities, ent, &id.index, &id.gen);\n",
         "  return id;\n",
         "}}\n",
+        "void vecs_schedule(vecs_engine_t *e, vecs_schedule_callback_t *callback, void *param) {{\n",
+        "  vecs_op_custom_t custom = {{.callback = callback, .param = param}};\n",
+        "  vecs_op_union_other_t op = {{.apply = vecs_apply_custom, .custom = custom}};\n",
+        "  {op_other_queue_method_enqueue}(&e->ops_other, op);\n",
+        "}}\n",
         "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e) {{\n",
         "  vecs_tmp_id_t id = {{.index = e->entities_to_add}};\n",
         "  ++e->entities_to_add;\n",
@@ -359,6 +374,7 @@ impl<'a> Display for Impl<'a> {
       entity_array_method_push = method_name!(&entity_array_t, "push"),
       op_add_component_queue_method_dequeue =
         method_name!(&op_add_component_queue_t, "dequeue"),
+      op_other_queue_method_enqueue = method_name!(&op_other_queue_t, "enqueue"),
       op_other_queue_method_dequeue = method_name!(&op_other_queue_t, "dequeue"),
       op_remove_component_queue_method_dequeue =
         method_name!(&op_remove_component_queue_t, "dequeue"),
