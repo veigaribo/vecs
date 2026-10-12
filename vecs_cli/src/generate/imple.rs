@@ -305,16 +305,24 @@ impl<'a> Display for Impl<'a> {
     }
 
     for event in self.data.events.values() {
-      let event_t = EventStructName::new(event.name);
-      let dyn_queue = DynQueue::new(event_t);
-      let dyn_queue_t = dyn_queue.get_type();
+      if !event.is_empty() {
+        let event_t = EventStructName::new(event.name);
+        let dyn_queue = DynQueue::new(event_t);
+        let dyn_queue_t = dyn_queue.get_type();
 
-      write!(
-        f,
-        concat!("{event_queue_method_init}(&e->events_{event_name}, 0);\n"),
-        event_name = event.name,
-        event_queue_method_init = method_name!(&dyn_queue_t, "init"),
-      )?;
+        write!(
+          f,
+          concat!("  {event_queue_method_init}(&e->events_{event_name}, 0);\n"),
+          event_name = event.name,
+          event_queue_method_init = method_name!(&dyn_queue_t, "init"),
+        )?;
+      } else {
+        write!(
+          f,
+          concat!("  e->events_{event_name} = 0;\n"),
+          event_name = event.name,
+        )?;
+      }
     }
 
     write!(
@@ -391,16 +399,26 @@ impl<'a> Display for Impl<'a> {
     }
 
     for event in self.data.events.values() {
-      let event_t = EventStructName::new(event.name);
-      let dyn_queue = DynQueue::new(event_t);
-      let dyn_queue_t = dyn_queue.get_type();
+      if !event.is_empty() {
+        let event_t = EventStructName::new(event.name);
+        let dyn_queue = DynQueue::new(event_t);
+        let dyn_queue_t = dyn_queue.get_type();
 
-      write!(
-        f,
-        concat!("  {event_queue_method_clone}(&e->events_{event_name}, &dst->events_{event_name});\n"),
-        event_name = event.name,
-        event_queue_method_clone = method_name!(&dyn_queue_t, "clone"),
-      )?;
+        write!(
+          f,
+          concat!(
+            "  {event_queue_method_clone}(&e->events_{event_name}, &dst->events_{event_name});\n"
+          ),
+          event_name = event.name,
+          event_queue_method_clone = method_name!(&dyn_queue_t, "clone"),
+        )?;
+      } else {
+        write!(
+          f,
+          concat!("  dst->events_{event_name} = e->events_{event_name};\n"),
+          event_name = event.name,
+        )?;
+      }
     }
 
     write!(f, concat!("}}\n", "\n"))?;
@@ -462,16 +480,18 @@ impl<'a> Display for Impl<'a> {
     }
 
     for event in self.data.events.values() {
-      let event_t = EventStructName::new(event.name);
-      let dyn_queue = DynQueue::new(event_t);
-      let dyn_queue_t = dyn_queue.get_type();
+      if !event.is_empty() {
+        let event_t = EventStructName::new(event.name);
+        let dyn_queue = DynQueue::new(event_t);
+        let dyn_queue_t = dyn_queue.get_type();
 
-      write!(
-        f,
-        concat!("  {event_queue_method_destroy}(&e->events_{event_name});\n"),
-        event_name = event.name,
-        event_queue_method_destroy = method_name!(&dyn_queue_t, "destroy"),
-      )?;
+        write!(
+          f,
+          concat!("  {event_queue_method_destroy}(&e->events_{event_name});\n"),
+          event_name = event.name,
+          event_queue_method_destroy = method_name!(&dyn_queue_t, "destroy"),
+        )?;
+      }
     }
 
     write!(
@@ -1508,7 +1528,10 @@ impl<'a> Display for Impl<'a> {
       // State loops:
       write!(
         f,
-        "void vecs_run_state_{state_name}(vecs_engine_t *e) {{\n",
+        concat!(
+          "void vecs_run_state_{state_name}(vecs_engine_t *e) {{\n",
+          "  size_t nodes_len;\n",
+        ),
         state_name = state.name,
       )?;
 
@@ -1517,17 +1540,27 @@ impl<'a> Display for Impl<'a> {
         let event_queue = DynQueue::new(event_t.clone());
         let event_queue_name = event_queue.get_type();
 
-        write!(
-          f,
-          concat!(
-            "  while (e->events_{event_name}.len > 0) {{\n",
-            "    {event_t} ev = {events_method_dequeue}(&e->events_{event_name});\n",
-            "    size_t nodes_len;\n",
-          ),
-          event_name = event.name,
-          event_t = event_t,
-          events_method_dequeue = method_name!(&event_queue_name, "dequeue"),
-        )?;
+        if !event.is_empty() {
+          write!(
+            f,
+            concat!(
+              "  while (e->events_{event_name}.len > 0) {{\n",
+              "    {event_t} ev = {events_method_dequeue}(&e->events_{event_name});\n",
+            ),
+            event_name = event.name,
+            event_t = event_t,
+            events_method_dequeue = method_name!(&event_queue_name, "dequeue"),
+          )?;
+        } else {
+          write!(
+            f,
+            concat!(
+              "  while (e->events_{event_name} > 0) {{\n",
+              "    --e->events_{event_name};\n",
+            ),
+            event_name = event.name,
+          )?;
+        }
 
         for system_layer in state.systems.iter() {
           for system_name in system_layer {
@@ -1547,15 +1580,34 @@ impl<'a> Display for Impl<'a> {
                     "    nodes_len = e->nodes_{node_name}.len;\n",
                     "    for (size_t i = 0; i < nodes_len; ++i) {{\n",
                     "      {node_t} *node = &e->nodes_{node_name}.items[i];\n",
-                    "      {system_name}(e, *node, ev);\n",
-                    "    }}\n",
                   ),
                   node_name = node,
                   node_t = node_t,
-                  system_name = system.name,
                 )?;
+
+                if !event.is_empty() {
+                  write!(
+                    f,
+                    concat!("      {system_name}(e, *node, ev);\n", "    }}\n",),
+                    system_name = system.name,
+                  )?;
+                } else {
+                  write!(
+                    f,
+                    concat!("      {system_name}(e, *node);\n", "    }}\n",),
+                    system_name = system.name,
+                  )?;
+                }
               } else {
-                write!(f, "    {system_name}(e, ev);\n", system_name = system.name)?;
+                if !event.is_empty() {
+                  write!(
+                    f,
+                    "    {system_name}(e, ev);\n",
+                    system_name = system.name,
+                  )?;
+                } else {
+                  write!(f, "    {system_name}(e);\n", system_name = system.name)?;
+                }
               }
             }
           }
@@ -1577,21 +1629,33 @@ impl<'a> Display for Impl<'a> {
 
     // Event emition:
     for event in self.data.events.values() {
-      let event_t = EventStructName::new(event.name);
-      let event_queue = DynQueue::new(event_t.clone());
-      let event_queue_t = event_queue.get_type();
+      if !event.is_empty() {
+        let event_t = EventStructName::new(event.name);
+        let event_queue = DynQueue::new(event_t.clone());
+        let event_queue_t = event_queue.get_type();
 
-      write!(
-        f,
-        concat!(
-          "void vecs_emit_{event_name}(vecs_engine_t *e, {event_t} ev) {{\n",
-          "  {event_queue_method_enqueue}(&e->events_{event_name}, ev);\n",
-          "}}\n",
-        ),
-        event_name = event.name,
-        event_t = event_t,
-        event_queue_method_enqueue = method_name!(&event_queue_t, "enqueue"),
-      )?;
+        write!(
+          f,
+          concat!(
+            "void vecs_emit_{event_name}(vecs_engine_t *e, {event_t} ev) {{\n",
+            "  {event_queue_method_enqueue}(&e->events_{event_name}, ev);\n",
+            "}}\n",
+          ),
+          event_name = event.name,
+          event_t = event_t,
+          event_queue_method_enqueue = method_name!(&event_queue_t, "enqueue"),
+        )?;
+      } else {
+        write!(
+          f,
+          concat!(
+            "void vecs_emit_{event_name}(vecs_engine_t *e) {{\n",
+            "  ++e->events_{event_name};\n",
+            "}}\n",
+          ),
+          event_name = event.name,
+        )?;
+      }
     }
 
     Ok(())

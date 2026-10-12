@@ -449,11 +449,15 @@ impl<'a> Display for Header<'a> {
     }
 
     for event in self.data.events.values() {
-      let event_t = EventStructName::new(event.name);
-      let dyn_queue = DynQueue::new(event_t);
-      let dyn_queue_t = dyn_queue.get_type();
+      if !event.is_empty() {
+        let event_t = EventStructName::new(event.name);
+        let dyn_queue = DynQueue::new(event_t);
+        let dyn_queue_t = dyn_queue.get_type();
 
-      write!(f, "  {} events_{};\n", dyn_queue_t, event.name)?;
+        write!(f, "  {} events_{};\n", dyn_queue_t, event.name)?;
+      } else {
+        write!(f, "  uint32_t events_{};\n", event.name)?;
+      }
     }
 
     write!(f, "}} vecs_engine_t;\n\n")?;
@@ -495,30 +499,59 @@ impl<'a> Display for Header<'a> {
     for system in self.data.systems.values() {
       // System function:
       let event_t = EventStructName::new(system.event);
+      let event_is_empty = self
+        .data
+        .events
+        .get(system.event)
+        .expect("could not find system event")
+        .is_empty();
 
       if let Some(node) = system.node {
         let node_t = NodeStructName::new(node);
 
-        write!(
-          f,
-          concat!(
-            "// System `{system_name}`.\n",
-            "void {system_name}(vecs_engine_t *engine, {node_t} node, {event_t} event);\n"
-          ),
-          system_name = system.name,
-          node_t = node_t,
-          event_t = event_t,
-        )?;
+        if !event_is_empty {
+          write!(
+            f,
+            concat!(
+              "// System `{system_name}`.\n",
+              "void {system_name}(vecs_engine_t *engine, {node_t} node, {event_t} event);\n"
+            ),
+            system_name = system.name,
+            node_t = node_t,
+            event_t = event_t,
+          )?;
+        } else {
+          write!(
+            f,
+            concat!(
+              "// System `{system_name}`.\n",
+              "void {system_name}(vecs_engine_t *engine, {node_t} node);\n"
+            ),
+            system_name = system.name,
+            node_t = node_t,
+          )?;
+        }
       } else {
-        write!(
-          f,
-          concat!(
-            "// System singleton `{system_name}`.\n",
-            "void {system_name}(vecs_engine_t *engine, {event_t} event);\n"
-          ),
-          system_name = system.name,
-          event_t = event_t,
-        )?;
+        if !event_is_empty {
+          write!(
+            f,
+            concat!(
+              "// System singleton `{system_name}`.\n",
+              "void {system_name}(vecs_engine_t *engine, {event_t} event);\n"
+            ),
+            system_name = system.name,
+            event_t = event_t,
+          )?;
+        } else {
+          write!(
+            f,
+            concat!(
+              "// System singleton `{system_name}`.\n",
+              "void {system_name}(vecs_engine_t *engine);\n"
+            ),
+            system_name = system.name,
+          )?;
+        }
       }
     }
 
@@ -717,12 +750,16 @@ impl<'a> Display for Header<'a> {
 
     // Event emition:
     for event in self.data.events.values() {
-      let event_t = EventStructName::new(event.name);
-      write!(
-        f,
-        "void vecs_emit_{}(vecs_engine_t *e, {} ev);\n",
-        event.name, event_t,
-      )?;
+      if !event.is_empty() {
+        let event_t = EventStructName::new(event.name);
+        write!(
+          f,
+          "void vecs_emit_{}(vecs_engine_t *e, {} ev);\n",
+          event.name, event_t,
+        )?;
+      } else {
+        write!(f, "void vecs_emit_{}(vecs_engine_t *e);\n", event.name)?;
+      }
     }
 
     write!(f, "\n#endif // !VECS_ECS_H\n")?;

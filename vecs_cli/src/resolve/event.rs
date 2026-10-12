@@ -45,13 +45,6 @@ pub fn resolve_event<'src>(
     ));
   }
 
-  if values.is_empty() {
-    return Err(ResolveError::new(
-      meta.span,
-      format!("event {} is missing its type", s.name.unwrap()),
-    ));
-  }
-
   while let Some(value) = values.pop_front() {
     if let ValueKind::Symbol(name) = value.kind {
       s.add_type_component(name);

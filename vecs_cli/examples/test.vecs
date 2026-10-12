@@ -9,7 +9,10 @@ component render;
 
 methods transform { clone clone_transform };
 
+event something_happened;
 event mouse_click mouse_click_t;
+
+system alert on something_happened;
 
 system move_init on mouse_click;
 system move on mouse_click { transform };
@@ -21,7 +24,7 @@ node something { render };
 
 state main {
   systems {
-    { move_init, move };
+    { alert, move_init, move };
     { render_init, render };
   };
 

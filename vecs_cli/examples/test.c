@@ -6,6 +6,10 @@ void clone_transform(struct transform *self, struct transform *dst) {
   memcpy(dst, self, sizeof(struct transform));
 }
 
+void alert(vecs_engine_t *engine) {
+  printf("something happened!!!\n");
+}
+
 void move_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
   printf("starting system move\n");
 }
@@ -23,7 +27,7 @@ void move(vecs_engine_t *engine, vecs_node_move_t node,
     vecs_node_something_t something = somethings.items[i];
     // vecs_component_render_t *r =
     //     vecs_node_something_get_render(engine, something);
-    printf("something\n");
+    printf("move thing\n");
   }
 }
 
@@ -111,6 +115,8 @@ int main() {
 
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
+
+  vecs_emit_something_happened(&e);
 
   printf("  clone\n");
   vecs_engine_t e2;
