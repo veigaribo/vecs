@@ -196,6 +196,30 @@ impl<'src> StateBuilder<'src> {
 //   }
 // }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ComponentMethod {
+  Clone,
+}
+
+pub enum ComponentMethodParseError {
+  Unrecognized,
+}
+
+impl<'a> TryFrom<&'a str> for ComponentMethod {
+  type Error = ComponentMethodParseError;
+
+  fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+    if value.eq_ignore_ascii_case("clone") {
+      Ok(ComponentMethod::Clone)
+    } else {
+      Err(ComponentMethodParseError::Unrecognized)
+    }
+  }
+}
+
+pub type ComponentMethodMap<'src> =
+  HashMap<&'src str, HashMap<ComponentMethod, &'src str>>;
+
 // CST. See the top comment for what it means.
 
 #[derive(Debug, Clone, Default)]
@@ -204,8 +228,11 @@ pub struct Cst<'src> {
   pub globals: HashMap<&'src str, TypeName<'src>>,
   // pub settings: Settings,
   pub components: HashMap<&'src str, Component<'src>>,
+  pub methods: ComponentMethodMap<'src>,
+
   pub events: HashMap<&'src str, TypeName<'src>>,
   pub systems: HashMap<&'src str, System<'src>>,
+
   pub nodes: HashMap<&'src str, Node<'src>>,
   pub node_mask_arr_size: u16,
 
@@ -280,5 +307,14 @@ impl<'src> Cst<'src> {
 
   pub fn add_global(&mut self, global: TypeName<'src>) {
     self.globals.insert(global.name, global);
+  }
+
+  pub fn add_methods(
+    &mut self,
+    component_name: &'src str,
+    methods: HashMap<ComponentMethod, &'src str>,
+  ) {
+    let sub_map = self.methods.entry(component_name).or_default();
+    sub_map.extend(methods.into_iter());
   }
 }

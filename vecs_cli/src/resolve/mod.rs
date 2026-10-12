@@ -3,6 +3,7 @@ pub mod cst;
 pub mod event;
 pub mod global;
 pub mod include;
+pub mod method;
 pub mod node;
 pub mod result;
 pub mod setting;
@@ -21,6 +22,7 @@ use crate::{
     event::resolve_event,
     global::resolve_global,
     include::resolve_include,
+    method::resolve_method,
     result::{ResolveError, ResolveResult},
     state::resolve_state,
     system::resolve_system,
@@ -88,6 +90,11 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
       } else if car.kind == ValueKind::Symbol("global") {
         let global = resolve_global(info, els)?;
         cst.add_global(global);
+      } else if car.kind == ValueKind::Symbol("method")
+        || car.kind == ValueKind::Symbol("methods")
+      {
+        let (component_name, methods) = resolve_method(info, els)?;
+        cst.add_methods(component_name, methods);
       } else if car.kind == ValueKind::Symbol("set") {
         resolve_setting(info.span, els, &mut cst)?;
       } else if let ValueKind::Symbol(_) = car.kind {

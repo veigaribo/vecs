@@ -1,5 +1,10 @@
 #include "ecs.h"
 #include <stdio.h>
+#include <string.h>
+
+void clone_transform(struct transform *self, struct transform *dst) {
+  memcpy(dst, self, sizeof(struct transform));
+}
 
 void move_init(vecs_engine_t *engine, vecs_event_mouse_click_t event) {
   printf("starting system move\n");
@@ -31,9 +36,8 @@ void render(vecs_engine_t *engine, vecs_node_render_t node,
   vecs_component_transform_t *t = vecs_node_render_get_transform(engine, node);
   // vecs_component_render_t *r = vecs_node_render_get_render(engine, node);
 
-  printf(
-      ".delta: %f, .runtime: %f, .frame: %lu, .x: %f, .y: %f\n",
-      event.delta, event.runtime, event.frame, t->x, t->y);
+  printf(".delta: %f, .runtime: %f, .frame: %lu, .x: %f, .y: %f\n", event.delta,
+         event.runtime, event.frame, t->x, t->y);
 }
 
 void click(vecs_engine_t *engine, vecs_node_click_t node,
@@ -41,8 +45,8 @@ void click(vecs_engine_t *engine, vecs_node_click_t node,
   vecs_component_layout_t *l = vecs_node_click_get_layout(engine, node);
   // vecs_component_render_t *r = vecs_node_click_get_render(engine, node);
 
-  printf(".x: %f, .y: %f, .btn: %d, .mode: %d\n", event.x,
-         event.x, event.button, l->mode);
+  printf(".x: %f, .y: %f, .btn: %d, .mode: %d\n", event.x, event.x,
+         event.button, l->mode);
 }
 
 int main() {
@@ -107,7 +111,17 @@ int main() {
 
   vecs_emit_mouse_click(&e, mc1);
   vecs_emit_frame(&e, f1);
+
+  printf("  clone\n");
+  vecs_engine_t e2;
+  vecs_clone(&e, &e2);
+
+  printf("  e:\n");
   vecs_run(&e);
 
+  printf("  e2:\n");
+  vecs_run(&e2);
+
   vecs_destroy(&e);
+  vecs_destroy(&e2);
 }

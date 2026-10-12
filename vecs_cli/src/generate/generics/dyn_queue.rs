@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::generate::generics::common::{
-  GenericElement, StructName, method_name, struct_name,
+  GenericElement, StructName, function_name, method_name, struct_name
 };
 
 pub struct DynQueue<T: GenericElement> {
@@ -50,6 +50,7 @@ impl<'a, T: GenericElement> Display for DynQueueHeader<'a, T> {
         "void {method_fit}({self_t} *self, uint32_t len);\n",
         "void {method_enqueue}({self_t} *self, {element_t} value);\n",
         "{element_t} {method_dequeue}({self_t} *self);\n",
+        "void {method_clone}({self_t} *restrict self, {self_t} *restrict dst);\n",
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
@@ -60,6 +61,7 @@ impl<'a, T: GenericElement> Display for DynQueueHeader<'a, T> {
       method_fit = method_name!(&self_t, "fit"),
       method_enqueue = method_name!(&self_t, "enqueue"),
       method_dequeue = method_name!(&self_t, "dequeue"),
+      method_clone = method_name!(&self_t, "clone"),
       method_destroy = method_name!(&self_t, "destroy"),
     )
   }
@@ -126,6 +128,27 @@ impl<'a, T: GenericElement> Display for DynQueueImpl<'a, T> {
         "  return result;\n",
         "}}\n",
         "\n",
+        "void {method_clone}({self_t} *restrict self, {self_t} *restrict dst) {{\n",
+        "  dst->len = 0;\n",
+        "  dst->head = 0;\n",
+        "\n",
+        "  if (self->cap == 0) {{;\n",
+        "    dst->items = NULL;\n",
+        "    dst->cap = 0;\n",
+        "    return;\n",
+        "  }};\n",
+        "\n",
+        "  dst->items = malloc(self->cap * sizeof({element_t}));\n",
+        "  dst->cap = self->cap;\n",
+        "\n",
+        "  for (size_t i = 0; i < self->len; ++i) {{\n",
+        "    size_t j = (self->head + i) & (self->cap - 1);\n",
+        "    {element_clone_fn}(&self->items[j], &dst->items[i]);\n",
+        "  }}\n",
+        "\n",
+        "  dst->len = self->len;\n",
+        "}}\n",
+        "\n",
         "void {method_destroy}({self_t} *self) {{\n",
         "  if (self->items != NULL)\n",
         "    free(self->items);\n",
@@ -144,6 +167,8 @@ impl<'a, T: GenericElement> Display for DynQueueImpl<'a, T> {
       method_fit = method_name!(&self_t, "fit"),
       method_enqueue = method_name!(&self_t, "enqueue"),
       method_dequeue = method_name!(&self_t, "dequeue"),
+      method_clone = method_name!(&self_t, "clone"),
+      element_clone_fn = function_name!("clone"; &element_t),
       method_destroy = method_name!(&self_t, "destroy"),
     )
   }

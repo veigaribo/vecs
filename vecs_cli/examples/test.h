@@ -18,3 +18,5 @@ typedef struct mouse_click {
 struct layout {
   int mode;
 };
+
+void clone_transform(struct transform *self, struct transform *dst);

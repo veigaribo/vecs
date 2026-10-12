@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::generate::generics::common::{
-  GenericElement, StructName, method_name, struct_name,
+  GenericElement, StructName, function_name, method_name, struct_name,
 };
 
 pub struct DynArray<T: GenericElement> {
@@ -50,6 +50,7 @@ impl<'a, T: GenericElement> Display for DynArrayHeader<'a, T> {
         "uint32_t {method_push}({self_t} *self, {element_t} value);\n",
         "{element_t} {method_pop}({self_t} *self);\n",
         "{element_t} {method_swap_remove}({self_t} *self, uint32_t index);\n",
+        "void {method_clone}({self_t} *restrict self, {self_t} *restrict dst);\n",
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
@@ -61,6 +62,7 @@ impl<'a, T: GenericElement> Display for DynArrayHeader<'a, T> {
       method_push = method_name!(&self_t, "push"),
       method_pop = method_name!(&self_t, "pop"),
       method_swap_remove = method_name!(&self_t, "swap_remove"),
+      method_clone = method_name!(&self_t, "clone"),
       method_destroy = method_name!(&self_t, "destroy"),
     )
   }
@@ -117,6 +119,29 @@ impl<'a, T: GenericElement> Display for DynArrayImpl<'a, T> {
         "  return result;\n",
         "}}\n",
         "\n",
+        "void {method_clone}({self_t} *restrict self, {self_t} *restrict dst) {{\n",
+        "  dst->len = 0;\n",
+        "\n",
+        "  if (self->cap == 0) {{;\n",
+        "    dst->items = NULL;\n",
+        "    dst->cap = 0;\n",
+        "    return;\n",
+        "  }};\n",
+        "\n",
+        "  dst->items = malloc(self->cap * sizeof({element_t}));\n",
+        "  dst->cap = self->cap;\n",
+        "\n",
+        "  if ({element_impls_clone_fn}()) {{\n",
+        "    for (size_t i = 0; i < self->len; ++i) {{\n",
+        "      {element_clone_fn}(&self->items[i], &dst->items[i]);\n",
+        "    }}\n",
+        "  }} else {{\n",
+        "    memcpy(dst->items, self->items, self->len * sizeof({element_t}));\n",
+        "  }}\n",
+        "\n",
+        "  dst->len = self->len;\n",
+        "}}\n",
+        "\n",
         "void {method_destroy}({self_t} *self) {{\n",
         "  if (self->items != NULL)\n",
         "    free(self->items);\n",
@@ -134,6 +159,9 @@ impl<'a, T: GenericElement> Display for DynArrayImpl<'a, T> {
       method_push = method_name!(&self_t, "push"),
       method_pop = method_name!(&self_t, "pop"),
       method_swap_remove = method_name!(&self_t, "swap_remove"),
+      method_clone = method_name!(&self_t, "clone"),
+      element_impls_clone_fn = function_name!("impls_clone"; &element_t),
+      element_clone_fn = function_name!("clone"; &element_t),
       method_destroy = method_name!(&self_t, "destroy"),
     )
   }

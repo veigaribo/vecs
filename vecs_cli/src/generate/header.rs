@@ -529,6 +529,7 @@ impl<'a> Display for Header<'a> {
       concat!(
         "\n",
         "void vecs_init(vecs_engine_t *e, vecs_state_t state);\n",
+        "void vecs_clone(vecs_engine_t *restrict e, vecs_engine_t *restrict dst);\n",
         "void vecs_destroy(vecs_engine_t *e);\n",
         "vecs_id_t vecs_add_entity(vecs_engine_t *e);\n",
         "vecs_tmp_id_t vecs_schedule_add_entity(vecs_engine_t *e);\n",

@@ -6,7 +6,7 @@ use crate::{
     constants::StateIdName,
     generics::skip_lists::{SkipList, SkipListImplInit},
   },
-  resolve::cst::Cst,
+  resolve::cst::{ComponentMethod, Cst},
 };
 
 use super::{
@@ -59,6 +59,26 @@ fn write_state_dispatched_method<
   Ok(())
 }
 
+fn write_default_clone_method<W: std::fmt::Write, T: Display + core::hash::Hash>(
+  w: &mut W,
+  typ: T,
+) -> std::fmt::Result {
+  write!(
+    w,
+    concat!(
+      "static inline bool {method_impls_clone}() {{\n",
+      "  return false;\n",
+      "}}\n",
+      "static void {method_clone}({t} *restrict src, {t} *restrict dst) {{\n",
+      "  *dst = *src;\n",
+      "}}\n",
+    ),
+    method_impls_clone = function_name!("impls_clone"; &typ),
+    method_clone = function_name!("clone"; &typ),
+    t = typ,
+  )
+}
+
 pub struct Impl<'a> {
   pub header_name: &'a str,
   pub data: &'a Cst<'a>,
@@ -70,6 +90,55 @@ impl<'a> Display for Impl<'a> {
     write!(f, "#include <stdlib.h>\n")?;
     write!(f, "#include <string.h>\n")?;
     write!(f, "#include \"{}\"\n\n", self.header_name)?;
+
+    // Component methods
+    for component in self.data.components.values() {
+      let component_name = component.name();
+      let component_t = ComponentStructName::new(component_name);
+
+      match self
+        .data
+        .methods
+        .get(component_name)
+        .and_then(|m| m.get(&ComponentMethod::Clone))
+      {
+        Some(method_fn) => {
+          write!(
+            f,
+            concat!(
+              "static inline bool {component_method_impls_clone}() {{\n",
+              "  return true;\n",
+              "}}\n",
+              "static void {component_method_clone}({component_t} *restrict src, {component_t} *restrict dst) {{\n",
+              "  {method_fn}(dst, src);\n",
+              "}}\n",
+            ),
+            component_method_impls_clone =
+              function_name!("impls_clone"; &component_t),
+            component_method_clone = function_name!("clone"; &component_t),
+            component_t = component_t,
+            method_fn = method_fn,
+          )?;
+        }
+        None => {
+          write_default_clone_method(f, &component_t)?;
+        }
+      }
+    }
+
+    for node in self.data.nodes.values() {
+      let node_t = NodeStructName::new(node.name);
+      write_default_clone_method(f, &node_t)?;
+    }
+
+    for event in self.data.events.values() {
+      let event_t = EventStructName::new(event.name);
+      write_default_clone_method(f, &event_t)?;
+    }
+
+    write_default_clone_method(f, "uint32_t")?;
+    write_default_clone_method(f, "uint64_t")?;
+    write_default_clone_method(f, "vecs_id_t")?;
 
     DynArray::new("uint32_t").imple().fmt(f)?;
     DynArray::new("uint64_t").imple().fmt(f)?;
@@ -141,18 +210,22 @@ impl<'a> Display for Impl<'a> {
       DynArray::new(node_t).imple().fmt(f)?;
     }
 
+    write_default_clone_method(f, "vecs_entity_t")?;
     DynArray::new("vecs_entity_t").imple().fmt(f)?;
     let entity_array = SparseDynArray::new("vecs_entity_t");
     entity_array.imple().fmt(f)?;
 
+    write_default_clone_method(f, "vecs_op_union_add_component_t")?;
     let op_add_component_queue = DynQueue::new("vecs_op_union_add_component_t");
     let op_add_component_queue_t = op_add_component_queue.get_type();
     op_add_component_queue.imple().fmt(f)?;
 
+    write_default_clone_method(f, "vecs_op_union_other_t")?;
     let op_other_queue = DynQueue::new("vecs_op_union_other_t");
     let op_other_queue_t = op_other_queue.get_type();
     op_other_queue.imple().fmt(f)?;
 
+    write_default_clone_method(f, "vecs_op_union_remove_component_t")?;
     let op_remove_component_queue = DynQueue::new("vecs_op_union_remove_component_t");
     let op_remove_component_queue_t = op_remove_component_queue.get_type();
     op_remove_component_queue.imple().fmt(f)?;
@@ -248,6 +321,93 @@ impl<'a> Display for Impl<'a> {
       f,
       concat!(
         "}}\n",
+        "\n",
+        "void vecs_clone(vecs_engine_t *restrict e, vecs_engine_t *restrict dst) {{\n",
+        "  dst->state = e->state;\n",
+        "  dst->globals = e->globals;\n",
+        "\n",
+        "  dst->entities_to_add = e->entities_to_add;\n",
+        "  dst->next_state = e->next_state;\n",
+        "  {op_add_component_queue_method_clone}(&e->ops_add_component, &dst->ops_add_component);\n",
+        "  {op_remove_component_queue_method_clone}(&e->ops_remove_component, &dst->ops_remove_component);\n",
+        "  {op_other_queue_method_clone}(&e->ops_other, &dst->ops_other);\n",
+        "\n",
+        "  dst->things_to_add_count = e->things_to_add_count;\n",
+        "  if (e->things_to_add_count > 0) {{\n",
+        "    size_t things_to_add_size = e->things_to_add_count * sizeof(vecs_id_t);\n",
+        "    dst->things_to_add = malloc(things_to_add_size);\n",
+        "    memcpy(dst->things_to_add, e->things_to_add, things_to_add_size);\n",
+        "  }} else {{\n",
+        "    dst->things_to_add = NULL;\n",
+        "  }}\n",
+        "\n",
+        "  {entity_array_method_clone}(&e->entities, &dst->entities);\n",
+        "\n",
+      ),
+      entity_array_method_clone = method_name!(&entity_array_t, "clone"),
+      op_add_component_queue_method_clone =
+        method_name!(&op_add_component_queue_t, "clone"),
+      op_other_queue_method_clone = method_name!(&op_other_queue_t, "clone"),
+      op_remove_component_queue_method_clone =
+        method_name!(&op_remove_component_queue_t, "clone"),
+    )?;
+
+    for component in self.data.components.values() {
+      if !component.is_empty() {
+        let component_name = component.name();
+        let component_t = ComponentStructName::new(component_name);
+
+        let dyn_array = SparseDynArray::new(component_t.clone());
+        let dyn_array_t = dyn_array.get_type();
+
+        write!(
+          f,
+          concat!(
+            "  {component_array_method_clone}(&e->components_{component_name}, &dst->components_{component_name});\n",
+            "  {index_index_method_clone}(&e->entity_to_component_{component_name}, &dst->entity_to_component_{component_name});\n",
+          ),
+          component_name = component_name,
+          component_array_method_clone = method_name!(&dyn_array_t, "clone"),
+          index_index_method_clone = method_name!(&index_index_t, "clone"),
+        )?;
+      }
+    }
+
+    for node in self.data.nodes.values() {
+      let node_t = NodeStructName::new(node.name);
+      let dyn_array = DynArray::new(node_t);
+      let dyn_array_t = dyn_array.get_type();
+
+      write!(
+        f,
+        concat!(
+          "  {node_array_method_clone}(&e->nodes_{node_name}, &dst->nodes_{node_name});\n",
+          "  {index_index_method_clone}(&e->entity_to_node_{node_name}, &dst->entity_to_node_{node_name});\n",
+        ),
+        node_name = node.name,
+        node_array_method_clone = method_name!(&dyn_array_t, "clone"),
+        index_index_method_clone = method_name!(&index_index_t, "clone"),
+      )?;
+    }
+
+    for event in self.data.events.values() {
+      let event_t = EventStructName::new(event.name);
+      let dyn_queue = DynQueue::new(event_t);
+      let dyn_queue_t = dyn_queue.get_type();
+
+      write!(
+        f,
+        concat!("  {event_queue_method_clone}(&e->events_{event_name}, &dst->events_{event_name});\n"),
+        event_name = event.name,
+        event_queue_method_clone = method_name!(&dyn_queue_t, "clone"),
+      )?;
+    }
+
+    write!(f, concat!("}}\n", "\n"))?;
+
+    write!(
+      f,
+      concat!(
         "void vecs_destroy(vecs_engine_t *e) {{\n",
         "  e->state = 0;\n",
         "  {entity_array_method_destroy}(&e->entities);\n",

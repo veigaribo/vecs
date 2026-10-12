@@ -33,7 +33,7 @@ pub fn resolve_state<'src>(
     } else {
       return Err(ResolveError::new(
         value.span,
-        format!("struct name must be a symbol. instead found {}", value),
+        format!("state name must be a symbol. instead found {}", value),
       ));
     }
 

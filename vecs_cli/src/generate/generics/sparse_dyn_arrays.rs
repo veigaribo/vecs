@@ -79,6 +79,7 @@ impl<'a, T: GenericElement> Display for SparseDynArrayHeader<'a, T> {
         "{element_t} *{method_push}({self_t} *self, {element_t} value, uint32_t *index, uint32_t *gen);\n",
         "bool {method_remove}({self_t} *self, uint32_t index, uint32_t gen, {element_t} *result);\n",
         "bool {method_remove_unchecked}({self_t} *self, uint32_t index, {element_t} *result);\n",
+        "void {method_clone}({self_t} *restrict self, {self_t} *restrict dst);\n",
         "void {method_destroy}({self_t} *self);\n",
         "\n",
       ),
@@ -95,6 +96,7 @@ impl<'a, T: GenericElement> Display for SparseDynArrayHeader<'a, T> {
       method_push = method_name!(&self_t, "push"),
       method_remove = method_name!(&self_t, "remove"),
       method_remove_unchecked = method_name!(&self_t, "remove_unchecked"),
+      method_clone = method_name!(&self_t, "clone"),
       method_destroy = method_name!(&self_t, "destroy"),
     )
   }
@@ -226,6 +228,14 @@ impl<'a, T: GenericElement> Display for SparseDynArrayImpl<'a, T> {
         "  return true;\n",
         "}}\n",
         "\n",
+        "void {method_clone}({self_t} *restrict self, {self_t} *restrict dst) {{\n",
+        "  {element_method_clone}(&self->items, &dst->items);\n",
+        "  {holes_method_clone}(&self->holes, &dst->holes);\n",
+        "  {hole_indices_method_clone}(&self->hole_indices, &dst->hole_indices);\n",
+        "  {gen_method_clone}(&self->gens, &dst->gens);\n",
+        "  dst->len = self->len;\n",
+        "}}\n",
+        "\n",
         "void {method_destroy}({self_t} *self) {{\n",
         "  {element_method_destroy}(&self->items);\n",
         "  {holes_method_destroy}(&self->holes);\n",
@@ -238,18 +248,22 @@ impl<'a, T: GenericElement> Display for SparseDynArrayImpl<'a, T> {
       element_method_init = method_name!(&element_dyn_arr_t, "init"),
       element_method_push = method_name!(&element_dyn_arr_t, "push"),
       element_method_pop = method_name!(&element_dyn_arr_t, "pop"),
+      element_method_clone = method_name!(&element_dyn_arr_t, "clone"),
       element_method_destroy = method_name!(&element_dyn_arr_t, "destroy"),
       gen_method_init = method_name!(&gen_dyn_arr_t, "init"),
       gen_method_push = method_name!(&gen_dyn_arr_t, "push"),
+      gen_method_clone = method_name!(&gen_dyn_arr_t, "clone"),
       gen_method_destroy = method_name!(&gen_dyn_arr_t, "destroy"),
       holes_method_init = method_name!(&holes_dyn_arr_t, "init"),
       holes_method_push = method_name!(&holes_dyn_arr_t, "push"),
+      holes_method_clone = method_name!(&holes_dyn_arr_t, "clone"),
       holes_method_destroy = method_name!(&holes_dyn_arr_t, "destroy"),
       hole_indices_method_init = method_name!(&hole_indices_dyn_queue_t, "init"),
       hole_indices_method_enqueue =
         method_name!(&hole_indices_dyn_queue_t, "enqueue"),
       hole_indices_method_dequeue =
         method_name!(&hole_indices_dyn_queue_t, "dequeue"),
+      hole_indices_method_clone = method_name!(&hole_indices_dyn_queue_t, "clone"),
       hole_indices_method_destroy =
         method_name!(&hole_indices_dyn_queue_t, "destroy"),
       self_t = self_t,
@@ -261,6 +275,7 @@ impl<'a, T: GenericElement> Display for SparseDynArrayImpl<'a, T> {
       method_push = method_name!(&self_t, "push"),
       method_remove = method_name!(&self_t, "remove"),
       method_remove_unchecked = method_name!(&self_t, "remove_unchecked"),
+      method_clone = method_name!(&self_t, "clone"),
       method_destroy = method_name!(&self_t, "destroy"),
     )
   }
