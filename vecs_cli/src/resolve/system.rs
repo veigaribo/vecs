@@ -25,8 +25,9 @@ pub fn resolve_system<'src>(
 ) -> ResolveResult<'src, (System<'src>, Option<Node<'src>>)> {
   let mut s = SystemBuilder::default();
   let mut system_node: SystemNode = SystemNode::None;
-  s.span(meta.span);
+  let name_span: Span<'src>;
 
+  s.span(meta.span);
   s.node(None);
 
   if let Some(ref value) = values.pop_front() {
@@ -44,6 +45,7 @@ pub fn resolve_system<'src>(
       }
 
       s.name(name);
+      name_span = value.span;
     } else {
       return Err(ResolveError::new(
         value.span,
@@ -77,7 +79,8 @@ pub fn resolve_system<'src>(
         ));
       }
 
-      (values, s, system_node) = resolve_system_node(&meta, value.span, values, s)?;
+      (values, s, system_node) =
+        resolve_system_node(&meta, name_span, value.span, values, s)?;
     } else {
       return Err(ResolveError::new(
         meta.span,
@@ -161,7 +164,8 @@ pub fn resolve_system_event<'src>(
 
 pub fn resolve_system_node<'src>(
   meta: &ResolveMeta<'src, '_>,
-  pre_span: Span<'src>, // Span of the `for` symbol
+  name_span: Span<'src>, // Span of the system name
+  pre_span: Span<'src>,  // Span of the `for` symbol
   mut values: VecDeque<Value<'src>>,
   s: SystemBuilder<'src>,
 ) -> ResolveResult<'src, (VecDeque<Value<'src>>, SystemBuilder<'src>, SystemNode<'src>)>
@@ -179,9 +183,23 @@ pub fn resolve_system_node<'src>(
       }
     } else if let ValueKind::List(mut values) = value.kind {
       // Must be inline.
+      let system_name = s.name.unwrap();
+
+      if meta.cst.nodes.contains_key(system_name) {
+        let previous = meta.cst.nodes.get(system_name).unwrap();
+
+        return Err(ResolveError::new(
+          name_span,
+          format!(
+            "duplicated node named '{}' (the same as its system). previously defined at {}",
+            system_name, previous.span
+          ),
+        ));
+      }
+
       let mut n = NodeBuilder::default();
       n.span(value.span);
-      n.name(s.name.unwrap());
+      n.name(system_name);
       n.init_components();
 
       while let Some(value) = values.pop_front() {
@@ -201,18 +219,6 @@ pub fn resolve_system_node<'src>(
           if let ValueKind::Symbol(param) = value.kind {
             if meta.cst.components.contains_key(param) {
               n.add_component(param);
-
-              if meta.cst.nodes.contains_key(param) {
-                let previous = meta.cst.nodes.get(param).unwrap();
-
-                return Err(ResolveError::new(
-                  value.span,
-                  format!(
-                    "duplicated node named '{}' (the same as its system). previously defined at {}",
-                    param, previous.span
-                  ),
-                ));
-              }
             } else {
               return Err(ResolveError::new(
                 value.span,
