@@ -51,7 +51,7 @@ pub fn resolve_state<'src>(
               ResolveError::new(value.span, format!("body of state {} empty. should contain a list of systems and optionally a list of nodes", name))
             })?;
 
-            if car.kind == ValueKind::Symbol("nodes") {
+            if car.is_symbol_ignore_ascii_case("nodes") {
               if got_nodes {
                 return Err(ResolveError::new(
                   meta.span,
@@ -65,7 +65,7 @@ pub fn resolve_state<'src>(
               for node in nodes {
                 s.add_node(node);
               }
-            } else if car.kind == ValueKind::Symbol("systems") {
+            } else if car.is_symbol_ignore_ascii_case("systems") {
               if got_systems {
                 return Err(ResolveError::new(
                   meta.span,

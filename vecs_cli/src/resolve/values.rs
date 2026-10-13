@@ -3,8 +3,6 @@ use std::{
   fmt::Display,
 };
 
-use educe::Educe;
-
 use crate::{
   common::StringKind,
   parse::{
@@ -14,7 +12,7 @@ use crate::{
   resolve::result::{ResolveError, ResolveResult},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum ValueKind<'src> {
   Integer(i128),
   String(StringKind),
@@ -23,12 +21,9 @@ pub enum ValueKind<'src> {
   Application(VecDeque<Value<'src>>),
 }
 
-#[derive(Debug, Clone, Eq, Educe)]
-#[educe(PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Value<'src> {
   pub kind: ValueKind<'src>,
-
-  #[educe(PartialEq(ignore))]
   pub span: Span<'src>,
 }
 

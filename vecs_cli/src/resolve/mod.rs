@@ -65,37 +65,37 @@ pub fn resolve<'src>(ast: Ast<'src>) -> ResolveResult<'src, Cst<'src>> {
 
       let car = els.pop_front().unwrap();
 
-      if car.kind == ValueKind::Symbol("component") {
+      if car.is_symbol_ignore_ascii_case("component") {
         let component = resolve_component(info, els)?;
         cst.add_component(component);
-      } else if car.kind == ValueKind::Symbol("event") {
+      } else if car.is_symbol_ignore_ascii_case("event") {
         let event = resolve_event(info, els)?;
         cst.add_event(event);
-      } else if car.kind == ValueKind::Symbol("node") {
+      } else if car.is_symbol_ignore_ascii_case("node") {
         let node = resolve_node(info, els)?;
         cst.add_node(node);
-      } else if car.kind == ValueKind::Symbol("system") {
+      } else if car.is_symbol_ignore_ascii_case("system") {
         let (system, maybe_node) = resolve_system(info, els)?;
         cst.add_system(system);
 
         if let Some(node) = maybe_node {
           cst.add_node(node);
         }
-      } else if car.kind == ValueKind::Symbol("state") {
+      } else if car.is_symbol_ignore_ascii_case("state") {
         let state = resolve_state(info, els)?;
         cst.add_state(state);
-      } else if car.kind == ValueKind::Symbol("include") {
+      } else if car.is_symbol_ignore_ascii_case("include") {
         let include = resolve_include(info, els)?;
         cst.add_include(include);
-      } else if car.kind == ValueKind::Symbol("global") {
+      } else if car.is_symbol_ignore_ascii_case("global") {
         let global = resolve_global(info, els)?;
         cst.add_global(global);
-      } else if car.kind == ValueKind::Symbol("method")
-        || car.kind == ValueKind::Symbol("methods")
+      } else if car.is_symbol_ignore_ascii_case("method")
+        || car.is_symbol_ignore_ascii_case("methods")
       {
         let (component_name, methods) = resolve_method(info, els)?;
         cst.add_methods(component_name, methods);
-      } else if car.kind == ValueKind::Symbol("set") {
+      } else if car.is_symbol_ignore_ascii_case("set") {
         resolve_setting(info.span, els, &mut cst)?;
       } else if let ValueKind::Symbol(_) = car.kind {
         return Err(ResolveError::new(car.span, format!("unknown tag {}", car)));
