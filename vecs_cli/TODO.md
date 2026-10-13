@@ -12,8 +12,8 @@ General:
 - Put parameters to system functions in structs for ease of declaration;
 - Maybe add macros to shorten the names of functions in system definitions, for
   convenience;
-- Recheck for memory leaks;
 - Extract parser and resolver as a library for use in other crates;
+- Recheck for memory leaks;
 
 OS-specific:
 
@@ -25,4 +25,6 @@ portable.
     at the same time, systems `a` and `b`. When running `a`, run for each node
     sequentially, but, for `b`, run as much of them as possible at the same time.
     Then, run system `c` serially, then run system `d` in the same manner as `b`;
+- - How do we then make it so that systems that operate on the same components run
+    as often as possible on the same core to optimize cache usage?
 - Make dynamic arrays always allocate in cache-line-aligned chunks;

@@ -15,10 +15,10 @@ event mouse_click mouse_click_t;
 system alert on something_happened;
 
 system move_init on mouse_click;
-system move on mouse_click { transform };
+system move on mouse_click for { transform };
 
 system render_init;
-system render { transform; render };
+system render for { transform; render };
 
 node something { render };
 
@@ -33,7 +33,7 @@ state main {
 
 component layout struct layout;
 
-system click on mouse_click { layout; render };
+system click on mouse_click for { layout; render };
 
 state menu {
   systems {

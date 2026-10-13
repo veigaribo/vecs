@@ -36,6 +36,14 @@ impl<'src> Value<'src> {
   pub fn new(kind: ValueKind<'src>, span: Span<'src>) -> Self {
     Value { kind, span }
   }
+
+  pub fn is_symbol_ignore_ascii_case(&self, expected: &str) -> bool {
+    if let ValueKind::Symbol(symbol_name) = self.kind {
+      symbol_name.eq_ignore_ascii_case(expected)
+    } else {
+      false
+    }
+  }
 }
 
 impl<'src> Display for Value<'src> {
