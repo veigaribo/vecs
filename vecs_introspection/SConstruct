@@ -1,12 +1,12 @@
 import os
 
 options = Variables('.env')
-options.Add(
+options.Add(EnumVariable(
   'PLATFORM',
   help='Sparse needs to know your platform.',
   allowed_values=['linux', 'bsd', 'mingw', 'cygwin', 'solaris'],
   default='linux',
-)
+))
 options.Add(EnumVariable(
   'MODE',
   help='Build for debugging / development or efficiency.',
