@@ -1,0 +1,87 @@
+import os
+
+options = Variables('.env')
+options.Add(
+  'PLATFORM',
+  help='Sparse needs to know your platform.',
+  allowed_values=['linux', 'bsd', 'mingw', 'cygwin', 'solaris'],
+  default='linux',
+)
+options.Add(EnumVariable(
+  'MODE',
+  help='Build for debugging / development or efficiency.',
+  allowed_values=['debug', 'release'],
+  default='debug',
+))
+options.Add(EnumVariable(
+  'ASAN',
+  help='Build with `fsanitize=address`.',
+  allowed_values=['yes', 'no'],
+  default='yes',
+))
+
+include = ['#.', '#vendor']
+
+env = Environment(variables=options, CPPPATH=include)
+Export('env')
+
+Help(options.GenerateHelpText(env))
+
+home = os.environ.get('HOME')
+if home is not None:
+    include.append(f'{home}/.local/include')
+
+env.PrependENVPath('PATH', os.getenv('PATH'))
+env.PrependENVPath('HOME', os.getenv('HOME'))
+
+env.Tool('compilation_db')
+env.CompilationDatabase()
+
+env.VariantDir('build/debug', '.')
+env.VariantDir('build/release', '.')
+env.VariantDir('build/test', '.')
+
+c_flags = []
+link_flags = []
+libs = []
+
+if env['MODE'] == 'debug':
+  c_flags.append('-g3')
+  c_flags.append('-fno-omit-frame-pointer')
+  main_variant = 'build/debug'
+elif env['MODE'] == 'release':
+  c_flags.append('-O3')
+  c_flags.append('-flto')
+  main_variant = 'build/release'
+else:
+  print('?')
+  exit(1)
+
+if env['ASAN'] == 'yes':
+  c_flags.append('-fsanitize=address')
+  link_flags.append('-fsanitize=address')
+
+
+def collect_conscripts(results):
+  acc = {'src': [], 'defines': dict()}
+
+  # Each conscript is expected to return a dict like such:
+  for result in results:
+    acc['src'] += result.get('src', [])
+    acc['defines'] |= result.get('defines', dict())
+
+  return acc
+
+
+conscripts = collect_conscripts([
+  env.SConscript(f'{main_variant}/vendor/SConscript.sparse'),
+])
+
+src = Glob(f'{main_variant}/*.c', exclude=f'{main_variant}/test_*') + conscripts['src']
+
+env.Program(f'{main_variant}/vecs-introspection',
+            src,
+            LIBS=libs,
+            CFLAGS=c_flags,
+            LINKFLAGS=link_flags,
+            CPPDEFINES=conscripts['defines'])

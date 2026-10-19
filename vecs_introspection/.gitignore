@@ -2,6 +2,9 @@ a.out
 compile_commands.json
 gdb.txt
 
+build/
+.sconsign.dblite
+
 # TODO: Retire
 structs.test.h
 introspect.c

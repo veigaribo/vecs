@@ -1,0 +1,88 @@
+import subprocess
+
+Import('env')
+
+
+def shell(command):
+  return subprocess.check_output(
+    env.subst(command),
+    shell=True,
+    encoding='utf-8').strip()
+
+
+# I don't think we need all of this, but it's all that `lib.c` currently depends
+# on.
+src = File(Split('''
+  sparse/allocate.c
+  sparse/builtin.c
+  sparse/char.c
+  sparse/cse.c
+  sparse/dominate.c
+  sparse/evaluate.c
+  sparse/expand.c
+  sparse/expression.c
+  sparse/flow.c
+  sparse/flowgraph.c
+  sparse/inline.c
+  sparse/ir.c
+  sparse/lib.c
+  sparse/linearize.c
+  sparse/liveness.c
+  sparse/memops.c
+  sparse/opcode.c
+  sparse/optimize.c
+  sparse/options.c
+  sparse/parse.c
+  sparse/predefine.c
+  sparse/pre-process.c
+  sparse/ptrlist.c
+  sparse/ptrmap.c
+  sparse/scope.c
+  sparse/show-parse.c
+  sparse/simplify.c
+  sparse/sort.c
+  sparse/ssa.c
+  sparse/symbol.c
+  sparse/target.c
+  sparse/tokenize.c
+  sparse/utils.c
+  sparse/version.c
+
+  sparse/target-alpha.c
+  sparse/target-arm.c
+  sparse/target-arm64.c
+  sparse/target-bfin.c
+  sparse/target-default.c
+  sparse/target-h8300.c
+  sparse/target-m68k.c
+  sparse/target-microblaze.c
+  sparse/target-mips.c
+  sparse/target-nds32.c
+  sparse/target-nios2.c
+  sparse/target-openrisc.c
+  sparse/target-ppc.c
+  sparse/target-riscv.c
+  sparse/target-s390.c
+  sparse/target-sh.c
+  sparse/target-sparc.c
+  sparse/target-x86.c
+  sparse/target-xtensa.c
+'''))
+
+src.append(File(f'sparse/compat-{env['PLATFORM']}.c'))
+
+# https://github.com/SCons/scons/issues/1093
+GCC_BASE = f'"\\"{shell('$CC --print-file-name=')}\\""'
+MULTIARCH_TRIPLET = f'"\\"{shell('$CC -print-multiarch 2>/dev/null')}\\""'
+
+defines = {
+  'GCC_BASE': GCC_BASE,
+  'MULTIARCH_TRIPLET': MULTIARCH_TRIPLET,
+}
+
+result = {
+  'src': src,
+  'defines': defines,
+}
+
+Return('result')
