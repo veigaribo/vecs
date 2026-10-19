@@ -1,0 +1,3 @@
+[submodule "vecs_introspection/vendor/sparse"]
+	path = vecs_introspection/vendor/sparse
+	url = git@github.com:veigaribo/sparse.git
