@@ -21,10 +21,14 @@ void str_arena_init(str_arena_t *self) {
 }
 
 static str_arena_chunk_t *arena_grow(str_arena_t *self) {
-  str_arena_chunk_t *chunk = malloc(sizeof(str_arena_chunk_t));
-  str_arena_chunk_init(chunk);
-  self->end_chunk = chunk;
-  return chunk;
+  str_arena_chunk_t *end_chunk = self->end_chunk;
+
+  str_arena_chunk_t *new_chunk = malloc(sizeof(str_arena_chunk_t));
+  str_arena_chunk_init(new_chunk);
+
+  end_chunk->next = new_chunk;
+  self->end_chunk = new_chunk;
+  return new_chunk;
 }
 
 static const uint8_t HIGHEST_BIT = (1 << 7);
@@ -66,9 +70,18 @@ char *str_arena_alloc(str_arena_t *self, size_t size) {
   return spot;
 }
 
+#define HEADER_SIZE 2
+
 char *str_arena_push_nt(str_arena_t *self, const char *str) {
   str_arena_chunk_t *chunk = self->end_chunk;
-  size_t remaining = ARENA_CHUNK_SIZE - chunk->used - 2;
+  size_t remaining = ARENA_CHUNK_SIZE - chunk->used;
+
+  if (remaining < HEADER_SIZE) {
+    chunk = arena_grow(self);
+    remaining = ARENA_CHUNK_SIZE - chunk->used;
+  }
+
+  remaining -= HEADER_SIZE;
 
   uint8_t *header = chunk->end;
   char *spot = (char *)(header + 2);
@@ -79,16 +92,16 @@ try_fit:
 
     if (str[i] == '\0') {
       store_header(header, chunk->used);
-      chunk->used += i + 1 + 2; // + null + header
-      chunk->end += i + 1 + 2;  // + null + header
+      chunk->used += i + 1 + HEADER_SIZE; // + null + header
+      chunk->end += i + 1 + HEADER_SIZE;  // + null + header
       return spot;
     }
   }
 
   chunk = arena_grow(self);
-  remaining = ARENA_CHUNK_SIZE - sizeof(*header);
+  remaining = ARENA_CHUNK_SIZE - HEADER_SIZE;
   header = chunk->start;
-  spot = (char *)(header + 2);
+  spot = (char *)(header + HEADER_SIZE);
   goto try_fit;
 }
 
@@ -132,5 +145,6 @@ void str_arena_destroy(str_arena_t *self) {
     next = current->next;
     arena_chunk_destroy(current);
     free(current);
-  } while (next != NULL);
+    current = next;
+  } while (current != NULL);
 }
