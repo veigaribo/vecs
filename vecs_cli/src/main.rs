@@ -1,12 +1,4 @@
-#![allow(irrefutable_let_patterns)]
-#![feature(trait_alias)]
-#![feature(formatting_options)]
-
 mod cli;
-mod common;
-mod generate;
-mod parse;
-mod resolve;
 
 use std::{
   env,
@@ -17,10 +9,11 @@ use std::{
 };
 
 use clap::Parser as _;
-use generate::{generate_header, generate_impl};
 
-use crate::{
-  cli::Cli,
+use crate::cli::Cli;
+
+use vecs::{
+  generate::{generate_header, generate_impl},
   parse::{data::src::ParseSrc, parse, strip_comments},
   resolve::resolve,
 };
