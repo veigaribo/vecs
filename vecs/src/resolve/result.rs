@@ -1,11 +1,11 @@
 use std::{borrow::Cow, fmt::Write as _};
 
-use crate::parse::data::str::Span;
+use crate::parse::data::src::Span;
 
 #[derive(Debug, Clone)]
 pub struct ResolveError<'src> {
-  span: Span<'src>,
-  message: Cow<'static, str>,
+  pub span: Span<'src>,
+  pub message: Cow<'static, str>,
 }
 
 impl<'src> std::fmt::Display for ResolveError<'src> {

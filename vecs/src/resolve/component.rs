@@ -26,7 +26,7 @@ pub fn resolve_component<'src>(
           value.span,
           format!(
             "duplicated component name '{}'. previously defined at {}",
-            name, previous.span
+            name, previous.span(),
           ),
         ));
       }

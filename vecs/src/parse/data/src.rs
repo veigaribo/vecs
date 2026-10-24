@@ -1,8 +1,101 @@
 use std::str::Chars;
 
-use crate::parse::data::str::Span;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
+pub struct Location<'src> {
+  pub file: Option<&'src str>,
+  pub byte_offset: usize,
+  pub line: usize,
+  pub column: usize,
+}
 
-use super::str::Location;
+impl<'src> Location<'src> {
+  pub const fn new(file: Option<&'src str>) -> Self {
+    Self {
+      file,
+      byte_offset: 0,
+      line: 1,
+      column: 0,
+    }
+  }
+
+  // Only supports LF (not CRLF)!
+  pub fn advance(&mut self, c: char) {
+    match c {
+      '\n' => {
+        self.byte_offset += c.len_utf8();
+        self.line += 1;
+        self.column = 0;
+      }
+      c => {
+        self.byte_offset += c.len_utf8();
+        self.column += 1;
+      }
+    }
+  }
+}
+
+impl<'src> std::fmt::Display for Location<'src> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if let Some(file) = self.file {
+      f.write_str(file)?;
+    }
+
+    write!(f, "@{} {}:{}", self.byte_offset, self.line, self.column)
+  }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash)]
+pub struct Span<'src> {
+  pub file: Option<&'src str>,
+  pub start_byte_offset: usize,
+  pub start_line: usize,
+  pub start_column: usize,
+  pub end_byte_offset: usize,
+  pub end_line: usize,
+  pub end_column: usize,
+}
+
+impl<'src> Span<'src> {
+  pub const fn new(start: Location<'src>, end: Location<'src>) -> Self {
+    Self {
+      file: start.file,
+      start_byte_offset: start.byte_offset,
+      start_line: start.line,
+      start_column: start.column,
+      end_byte_offset: end.byte_offset,
+      end_line: end.line,
+      end_column: end.column,
+    }
+  }
+
+  pub fn slice(&self, text: &'src str) -> &'src str {
+    &text[self.start_byte_offset..self.end_byte_offset]
+  }
+
+  /// In bytes.
+  pub fn len(&self) -> usize {
+    self.end_byte_offset - self.start_byte_offset
+  }
+}
+
+impl<'src> std::fmt::Display for Span<'src> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if let Some(file) = self.file {
+      f.write_str(file)?;
+    }
+
+    write!(
+      f,
+      "@({} {}:{} - {} {}:{})",
+      self.start_byte_offset,
+      self.start_line,
+      self.start_column,
+      self.end_byte_offset,
+      self.end_line,
+      self.end_column,
+    )
+  }
+}
 
 /// An iterator. Input to parse functions.
 #[derive(Debug, Clone)]

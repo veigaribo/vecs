@@ -1,13 +1,11 @@
 use std::{borrow::Cow, fmt::Write as _};
 
-use crate::parse::data::{src::ParseSrc, str::Location};
-
-use super::str::Span;
+use crate::parse::data::src::{Location, ParseSrc, Span};
 
 #[derive(Debug, Clone)]
 pub struct ParseError<'src> {
-  location: Location<'src>,
-  message: Cow<'static, str>,
+  pub location: Location<'src>,
+  pub message: Cow<'static, str>,
 }
 
 impl<'src> std::fmt::Display for ParseError<'src> {

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use derive_builder::Builder;
 
-use crate::{common::StringKind, parse::data::str::Span};
+use crate::{common::StringKind, parse::data::src::Span};
 
 // CST means "concrete semantic tree".
 // Maybe you wouldn't consider this a tree but I think `css` would be too confusing.
@@ -56,9 +56,6 @@ impl<'src> std::hash::Hash for TypeName<'src> {
 
 #[derive(Debug, Clone, Builder)]
 pub struct Component<'src> {
-  #[builder(field(vis = "pub"))]
-  pub span: Span<'src>,
-
   // Empty => marker
   #[builder(field(vis = "pub"))]
   pub typ: TypeName<'src>,
@@ -73,6 +70,10 @@ pub struct Component<'src> {
 impl<'src> Component<'src> {
   pub fn name(&self) -> &'src str {
     self.typ.name
+  }
+
+  pub fn span(&self) -> Span<'src> {
+    self.typ.span
   }
 
   pub fn is_empty(&self) -> bool {
@@ -196,9 +197,18 @@ impl<'src> StateBuilder<'src> {
 //   }
 // }
 
+// IMPORTANT: Keep in sync with `/vecs/c/lib.h`!
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentMethod {
-  Clone,
+  Clone = 1,
+}
+
+// https://doc.rust-lang.org/core/mem/fn.discriminant.html#accessing-the-numeric-value-of-the-discriminant
+impl ComponentMethod {
+  pub fn discriminant(&self) -> u8 {
+    unsafe { *<*const _>::from(self).cast::<u8>() }
+  }
 }
 
 pub enum ComponentMethodParseError {
@@ -256,7 +266,6 @@ impl<'src> Cst<'src> {
     let mask_j: u8 = (index % 64).try_into().unwrap();
 
     let component = Component {
-      span: typ.span,
       typ,
       mask_i,
       mask_j,

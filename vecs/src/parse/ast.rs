@@ -2,8 +2,8 @@ use educe::Educe;
 use std::{collections::VecDeque, fmt};
 
 #[cfg(test)]
-use crate::parse::data::str::Location;
-use crate::{common::StringKind, parse::data::str::Span};
+use crate::parse::data::src::Location;
+use crate::{common::StringKind, parse::data::src::Span};
 
 // A positional entry in a table may be a normal value or the embedment of another
 // table.

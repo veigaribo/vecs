@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::{
-  parse::data::str::Span,
+  parse::data::src::Span,
   resolve::{result::ResolveResult, values::Value},
 };
 

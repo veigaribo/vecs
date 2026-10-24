@@ -15,7 +15,7 @@ use node::resolve_node;
 use setting::resolve_setting;
 
 use crate::{
-  parse::{ast::Ast, data::str::Span},
+  parse::{ast::Ast, data::src::Span},
   resolve::{
     component::resolve_component,
     cst::Cst,

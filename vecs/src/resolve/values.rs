@@ -7,7 +7,7 @@ use crate::{
   common::StringKind,
   parse::{
     ast::{Expression, ExpressionKind, ListEntry},
-    data::str::Span,
+    data::src::Span,
   },
   resolve::result::{ResolveError, ResolveResult},
 };
